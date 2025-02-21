@@ -1,0 +1,26 @@
+{
+  "name": "train-game",
+  "version": "1.0.0",
+  "description": "A silly little train game to share with friends.",
+  "repository": {
+    "type": "git"
+  },
+  "license": "ISC",
+  "author": "Johnny Boi",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack",
+    "watch": "webpack --watch",
+    "serve": "webpack serve"
+  },
+  "devDependencies": {
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.0"
+  },
+  "dependencies": {
+    "three": "^0.173.0"
+  }
+}
