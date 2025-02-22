@@ -7,8 +7,22 @@ export function initializePlaceables(engine) {
     engine.addInitRule((state) => {
         state.placeables = {};
 
+        // TODO extract this out;
+        let makeStrait = (x, y, z) => {
+            let straitModel = state.models.strait.clone();
+
+            straitModel.position.x = x;
+            straitModel.position.y = y;
+            straitModel.position.z = z;
+
+            return {
+                mesh: straitModel,
+            };
+        };
+
         // dummy placeable for now
-        state.currentPlaceable = makeDummy;
+        // state.currentPlaceable = makeDummy;
+        state.currentPlaceable = makeStrait;
 
         // add placeable mouse click event
         const raycaster = new THREE.Raycaster();
@@ -38,8 +52,8 @@ export function initializePlaceables(engine) {
             if (intersects.length > 0) {
                 // change color of material for now
                 // intersects[0].object.material.color.set(0xff0000);
-                let x = Math.round(intersects[0].point.x);
-                let z = Math.round(intersects[0].point.z);
+                let x = Math.round(intersects[0].point.x / 2) * 2;
+                let z = Math.round(intersects[0].point.z / 2) * 2;
 
                 // let x = intersects[0].point.x;
                 // let z = intersects[0].point.z;
