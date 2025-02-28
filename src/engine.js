@@ -57,8 +57,8 @@ export default function makeEngine(settings = {}) {
     gameState.camera = new THREE.PerspectiveCamera(
         settings.fov ?? 75,
         canvasSizes.width / canvasSizes.height,
-        settings.near ?? 0.001,
-        settings.far ?? 1000,
+        settings.near ?? 0.1,
+        settings.far ?? 1024,
     );
     gameState.camera.position.z = 30;
     gameState.camera.position.y = 10;

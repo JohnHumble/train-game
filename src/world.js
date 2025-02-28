@@ -19,10 +19,12 @@ export function initializeWorld(engine) {
 
         // Ground
         const groundPlane = new THREE.Mesh(
-            new THREE.PlaneGeometry(30, 30, 1, 1),
+            new THREE.PlaneGeometry(1024, 1024, 64, 64),
             groundMaterial,
         );
         groundPlane.rotateX(-Math.PI / 2);
+        groundPlane.position.y = -0.1;
+        groundPlane.name = "ground-plane";
         state.groundPlane = groundPlane;
 
         state.scene.add(state.ambientLight, state.sunLight, state.groundPlane);

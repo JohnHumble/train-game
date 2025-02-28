@@ -5,8 +5,8 @@ import { loadModels } from "./loader.js";
 
 var engine = makeEngine();
 
-// add model resource
-loadModels(engine);
+// load models
+await loadModels();
 
 // initialize world
 initializeCamera(engine);
