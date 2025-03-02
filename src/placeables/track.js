@@ -1,5 +1,5 @@
 export function trackPlaceableFactory(models, scene) {
-    let makeModelFactory = (name, offset, tiles) => {
+    let makeModelFactory = (name, offset, tiles, nodes) => {
         let dummyObj = models[name].clone();
         dummyObj.visible = false;
         dummyObj.material = dummyObj.material.clone();
@@ -21,24 +21,28 @@ export function trackPlaceableFactory(models, scene) {
             pos.z = z + offset;
         };
 
-        let adjTiles = (x, z, rot) => {
+        let adjPoints = (x, z, rot, points) => {
             let cosTheta = Math.cos(-rot);
             let sinTheta = Math.sin(-rot);
 
             // adjust tiles
-            let adjTiles = tiles.map((tile) => {
+            let adjPoints = points.map((point) => {
                 // NOTE remove *2 if we have the scale of everything
-                let tileOff = offset / 2;
-                let rootX = tile[0] - tileOff;
-                let rootZ = tile[1] - tileOff;
+                let pointOff = offset / 2;
+                let rootX = point[0] - pointOff;
+                let rootZ = point[1] - pointOff;
 
-                let tileX = rootX * cosTheta - rootZ * sinTheta + tileOff;
-                let tileZ = rootZ * cosTheta + rootX * sinTheta + tileOff;
+                let pointX = rootX * cosTheta - rootZ * sinTheta + pointOff;
+                let pointZ = rootZ * cosTheta + rootX * sinTheta + pointOff;
 
-                return [tileX * 2 + x, tileZ * 2 + z];
+                return [pointX * 2 + x, pointZ * 2 + z];
             });
 
-            return adjTiles;
+            return adjPoints;
+        };
+
+        let adjTiles = (x, z, rot) => {
+            return adjPoints(x, z, rot, tiles);
         };
 
         // deep copy tiles.
@@ -69,6 +73,19 @@ export function trackPlaceableFactory(models, scene) {
 
             let model = straitModel.clone();
 
+            // adjust nodes
+            if (nodes !== undefined) {
+                var newNodes = nodes.map((nodePath) => {
+                    return adjPoints(x, z, rot, nodePath);
+                    // return nodePath.map((node) => {
+                    //     return [node[0] * 2 + x, node[1] * 2 + z];
+                    // });
+                });
+            }
+
+            // Path List of List of points
+            // all possible paths through object.
+
             return {
                 mesh: model,
                 // TODO add items
@@ -79,6 +96,7 @@ export function trackPlaceableFactory(models, scene) {
                 setOpaque: () => {
                     model.material = material;
                 },
+                paths: newNodes,
                 action: undefined,
             };
         };
@@ -111,6 +129,7 @@ export function trackPlaceableFactory(models, scene) {
                 param.name,
                 param.offset ?? 0,
                 param.tiles ?? [],
+                param.paths,
             );
         });
 
@@ -124,8 +143,30 @@ export function trackPlaceableFactory(models, scene) {
     // locomotive
 
     return buildPlaceables([
-        { name: "strait", tiles: [[0, 0]] },
-        { name: "cross", tiles: [[0, 0]] },
+        {
+            name: "strait",
+            tiles: [[0, 0]],
+            paths: [
+                [
+                    [0, -0.5],
+                    [0, 0.5],
+                ],
+            ],
+        },
+        {
+            name: "cross",
+            tiles: [[0, 0]],
+            paths: [
+                [
+                    [0, -0.5],
+                    [0, 0.5],
+                ],
+                [
+                    [-0.5, 0],
+                    [0.5, 0],
+                ],
+            ],
+        },
         {
             name: "curve-4",
             offset: 1.0,
@@ -142,6 +183,7 @@ export function trackPlaceableFactory(models, scene) {
                 [1, 2],
                 [2, 2],
             ],
+            paths: [makeCurvePath(3, 8)],
         },
         {
             name: "curve-6",
@@ -168,6 +210,7 @@ export function trackPlaceableFactory(models, scene) {
                 [2, 3],
                 [3, 3],
             ],
+            nodes: [makeCurvePath(5, 10)],
         },
         {
             name: "curve-8",
@@ -207,6 +250,7 @@ export function trackPlaceableFactory(models, scene) {
                 [4, 3],
                 [4, 4],
             ],
+            nodes: [makeCurvePath(7, 12)],
         },
         {
             name: "curve-12",
@@ -259,6 +303,7 @@ export function trackPlaceableFactory(models, scene) {
                 [0, 4],
                 [-1, 4],
             ],
+            nodes: [makeCurvePath(11, 16)],
         },
         {
             name: "curve-16",
@@ -324,6 +369,34 @@ export function trackPlaceableFactory(models, scene) {
                 [-1, 5],
                 [-1, 4],
             ],
+            nodes: [makeCurvePath(15, 24)],
         },
     ]);
+}
+
+function makeCurvePath(radius, steps) {
+    let angle = Math.PI / 2;
+    let stepSize = angle / steps;
+
+    let nodes = [];
+    let origin = (radius + 1) / 2 - 1.5;
+
+    let theta = Math.PI;
+    let end = theta + angle;
+
+    let addNode = (theta) => {
+        let x = radius * Math.cos(theta) + radius - origin;
+        let y = -radius * Math.sin(theta) - origin;
+
+        nodes.push([x, y]);
+    };
+
+    while (theta < end) {
+        addNode(theta);
+        theta += stepSize;
+    }
+    // do one last iteration to make the end node
+    addNode(theta);
+
+    return nodes;
 }

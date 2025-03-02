@@ -1,4 +1,3 @@
-import { makeDummy } from "./dummy.js";
 import * as THREE from "three";
 import { trackPlaceableFactory } from "./track.js";
 import { models } from "../loader.js";
@@ -24,13 +23,25 @@ export function initializePlaceables(engine) {
 
         // Game world grid
         // x-y: object
-        let grid = {};
+        state.grid = {};
+
+        state.train = {
+            isPlaced: false,
+            obj: new THREE.Mesh(
+                new THREE.BoxGeometry(2, 2, 2),
+                new THREE.MeshStandardMaterial(),
+            ),
+            // targetNode: undefined,
+            // sourceNode: undefined,
+            pathIndex: undefined,
+            velocity: 1,
+        };
 
         function isAvailable(tiles) {
             let available = true;
             tiles.forEach((tile) => {
                 let tileKey = getGridKey(tile);
-                available = available && grid[tileKey] == undefined;
+                available = available && state.grid[tileKey] == undefined;
             });
             return available;
         }
@@ -59,7 +70,7 @@ export function initializePlaceables(engine) {
                 }
                 if (erase) {
                     let key = getGridKey([position.x, position.z]);
-                    let obj = grid[key];
+                    let obj = state.grid[key];
                     if (obj !== undefined) {
                         obj.setTransparent();
                         pastObj = obj;
@@ -79,13 +90,13 @@ export function initializePlaceables(engine) {
             if (position) {
                 if (erase) {
                     let key = getGridKey([position.x, position.z]);
-                    let obj = grid[key];
+                    let obj = state.grid[key];
                     if (obj !== undefined) {
                         state.scene.remove(obj.mesh);
                         obj.tiles.forEach((tile) => {
                             let tileKey = getGridKey(tile);
                             console.log("removing at: " + tileKey);
-                            grid[tileKey] = undefined;
+                            state.grid[tileKey] = undefined;
                         });
                     }
                 } else {
@@ -104,8 +115,21 @@ export function initializePlaceables(engine) {
                             placeable.tiles.forEach((tile) => {
                                 let tileKey = getGridKey(tile);
                                 console.log("placing at: " + tileKey);
-                                grid[tileKey] = placeable;
+                                state.grid[tileKey] = placeable;
                             });
+
+                            if (placeable.paths !== undefined) {
+                                if (!state.train.isPlaced) {
+                                    state.scene.add(state.train.obj);
+                                    let nodePos = placeable.paths[0][0];
+                                    state.train.obj.position.x = nodePos[0];
+                                    state.train.obj.position.y = 1.3;
+                                    state.train.obj.position.z = nodePos[1];
+
+                                    state.train.isPlaced = true;
+                                    state.train.path = 0;
+                                }
+                            }
                         }
                     } else {
                         state.scene.add(placeable.mesh);
@@ -163,7 +187,7 @@ export function initializePlaceables(engine) {
     });
 }
 
-function getGridKey(tile) {
+export function getGridKey(tile) {
     let x = Math.round(tile[0]);
     let z = Math.round(tile[1]);
     let tileKey = `${x}-${z}`;
