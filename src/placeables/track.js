@@ -183,7 +183,7 @@ export function trackPlaceableFactory(models, scene) {
                 [1, 2],
                 [2, 2],
             ],
-            paths: [makeCurvePath(3, 8)],
+            paths: [makeCurvePath(4, 8)],
         },
         {
             name: "curve-6",
@@ -210,7 +210,7 @@ export function trackPlaceableFactory(models, scene) {
                 [2, 3],
                 [3, 3],
             ],
-            nodes: [makeCurvePath(5, 10)],
+            paths: [makeCurvePath(6, 10)],
         },
         {
             name: "curve-8",
@@ -250,7 +250,7 @@ export function trackPlaceableFactory(models, scene) {
                 [4, 3],
                 [4, 4],
             ],
-            nodes: [makeCurvePath(7, 12)],
+            paths: [makeCurvePath(8, 12)],
         },
         {
             name: "curve-12",
@@ -303,7 +303,7 @@ export function trackPlaceableFactory(models, scene) {
                 [0, 4],
                 [-1, 4],
             ],
-            nodes: [makeCurvePath(11, 16)],
+            paths: [makeCurvePath(12, 16)],
         },
         {
             name: "curve-16",
@@ -369,26 +369,28 @@ export function trackPlaceableFactory(models, scene) {
                 [-1, 5],
                 [-1, 4],
             ],
-            nodes: [makeCurvePath(15, 24)],
+            paths: [makeCurvePath(16, 24)],
         },
     ]);
 }
 
 function makeCurvePath(radius, steps) {
+    let adjRadius = radius - 0.5;
+    // radius = 0;
     let angle = Math.PI / 2;
     let stepSize = angle / steps;
 
     let nodes = [];
-    let origin = (radius + 1) / 2 - 1.5;
+    let origin = radius / 2;
 
     let theta = Math.PI;
     let end = theta + angle;
 
     let addNode = (theta) => {
-        let x = radius * Math.cos(theta) + radius - origin;
-        let y = -radius * Math.sin(theta) - origin;
+        let x = adjRadius * Math.cos(theta) + origin + 0.5;
+        let z = -adjRadius * Math.sin(theta) - origin + 0.5;
 
-        nodes.push([x, y]);
+        nodes.push([x, z]);
     };
 
     while (theta < end) {
@@ -396,7 +398,19 @@ function makeCurvePath(radius, steps) {
         theta += stepSize;
     }
     // do one last iteration to make the end node
-    addNode(theta);
+    const thresh = 0.001;
+    let lastNode = nodes[nodes.length - 1];
+    let lastX = lastNode[0];
+    let lastZ = lastNode[1];
+
+    let isBad = (n) => {
+        let adjN = n * 2;
+        return Math.abs(Math.round(adjN) - adjN) > thresh;
+    };
+
+    if (isBad(lastX) || isBad(lastZ)) {
+        addNode(theta);
+    }
 
     return nodes;
 }

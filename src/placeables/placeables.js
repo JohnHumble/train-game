@@ -33,8 +33,10 @@ export function initializePlaceables(engine) {
             ),
             // targetNode: undefined,
             // sourceNode: undefined,
-            pathIndex: undefined,
-            velocity: 1,
+            // pathIndex: undefined,
+            path: undefined,
+            ind: undefined,
+            velocity: 5,
         };
 
         function isAvailable(tiles) {
@@ -125,9 +127,9 @@ export function initializePlaceables(engine) {
                                     state.train.obj.position.x = nodePos[0];
                                     state.train.obj.position.y = 1.3;
                                     state.train.obj.position.z = nodePos[1];
-
                                     state.train.isPlaced = true;
-                                    state.train.path = 0;
+                                    state.train.path = placeable.paths[0];
+                                    state.train.ind = 1;
                                 }
                             }
                         }
@@ -188,8 +190,8 @@ export function initializePlaceables(engine) {
 }
 
 export function getGridKey(tile) {
-    let x = Math.round(tile[0]);
-    let z = Math.round(tile[1]);
+    let x = Math.round(tile[0] / 2);
+    let z = Math.round(tile[1] / 2);
     let tileKey = `${x}-${z}`;
     return tileKey;
 }

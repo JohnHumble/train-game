@@ -15,6 +15,6 @@ initializeWorld(engine);
 
 // add placeables
 initializePlaceables(engine);
-// initializeTrainSystem(engine);
+initializeTrainSystem(engine);
 
 engine.start();
