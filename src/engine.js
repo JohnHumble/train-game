@@ -72,7 +72,7 @@ export default function makeEngine(settings = {}) {
         gameState.camera.updateProjectionMatrix();
 
         gameState.renderer.setSize(canvasSizes.width, canvasSizes.height);
-        gameState.renderer.render();
+        // gameState.renderer.render();
     });
 
     gameState.renderer.setClearColor(settings.background ?? 0xe232222, 1);

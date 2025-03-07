@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { trackPlaceableFactory } from "./track.js";
 import { models } from "../loader.js";
+import { deepcopy } from "../utilities.js";
 
 // need to keep track of current placeable object
 
@@ -23,27 +24,13 @@ export function initializePlaceables(engine) {
 
         // Game world grid
         // x-y: object
-        state.grid = {};
-
-        state.train = {
-            isPlaced: false,
-            obj: new THREE.Mesh(
-                new THREE.BoxGeometry(2, 2, 2),
-                new THREE.MeshStandardMaterial(),
-            ),
-            // targetNode: undefined,
-            // sourceNode: undefined,
-            // pathIndex: undefined,
-            path: undefined,
-            ind: undefined,
-            velocity: 5,
-        };
+        state.grid = new Map();
 
         function isAvailable(tiles) {
             let available = true;
             tiles.forEach((tile) => {
                 let tileKey = getGridKey(tile);
-                available = available && state.grid[tileKey] == undefined;
+                available = available && state.grid.get(tileKey) == undefined;
             });
             return available;
         }
@@ -72,7 +59,7 @@ export function initializePlaceables(engine) {
                 }
                 if (erase) {
                     let key = getGridKey([position.x, position.z]);
-                    let obj = state.grid[key];
+                    let obj = state.grid.get(key);
                     if (obj !== undefined) {
                         obj.setTransparent();
                         pastObj = obj;
@@ -92,13 +79,13 @@ export function initializePlaceables(engine) {
             if (position) {
                 if (erase) {
                     let key = getGridKey([position.x, position.z]);
-                    let obj = state.grid[key];
+                    let obj = state.grid.get(key);
                     if (obj !== undefined) {
                         state.scene.remove(obj.mesh);
                         obj.tiles.forEach((tile) => {
                             let tileKey = getGridKey(tile);
                             console.log("removing at: " + tileKey);
-                            state.grid[tileKey] = undefined;
+                            state.grid.delete(tileKey);
                         });
                     }
                 } else {
@@ -117,19 +104,15 @@ export function initializePlaceables(engine) {
                             placeable.tiles.forEach((tile) => {
                                 let tileKey = getGridKey(tile);
                                 console.log("placing at: " + tileKey);
-                                state.grid[tileKey] = placeable;
+                                state.grid.set(tileKey, placeable);
                             });
 
                             if (placeable.paths !== undefined) {
-                                if (!state.train.isPlaced) {
-                                    state.scene.add(state.train.obj);
-                                    let nodePos = placeable.paths[0][0];
-                                    state.train.obj.position.x = nodePos[0];
-                                    state.train.obj.position.y = 1.3;
-                                    state.train.obj.position.z = nodePos[1];
-                                    state.train.isPlaced = true;
-                                    state.train.path = placeable.paths[0];
-                                    state.train.ind = 1;
+                                if (state.train == undefined) {
+                                    state.train = makeTrain(
+                                        placeable.paths[0],
+                                        state.scene,
+                                    );
                                 }
                             }
                         }
@@ -235,4 +218,70 @@ function getMouseVec(event, state) {
         ((-event.clientY + state.canvasRect.top) / window.innerHeight) * 2 + 1;
 
     return new THREE.Vector2(x, y);
+}
+
+function makeTrain(nodePath, scene) {
+    let x = nodePath[0][0];
+    let y = 1.3;
+    let z = nodePath[0][1];
+
+    let pos = new THREE.Vector3(x, y, z);
+
+    let parent = makeTruck(nodePath, scene, pos, 5);
+
+    parent.spacing = 4.8;
+    pos.x -= parent.spacing;
+
+    let child = makeTruck(nodePath, scene, pos);
+
+    // set relationships
+    parent.child = child;
+    child.parent = parent;
+
+    child.spacing = 2.7;
+    pos.x -= child.spacing;
+    let child2 = makeTruck(nodePath, scene, pos);
+
+    child.child = child2;
+    child2.parent = child;
+
+    child2.spacing = 4.0;
+    pos.x -= child2.spacing;
+    let child3 = makeTruck(nodePath, scene, pos);
+
+    child2.child = child3;
+    child3.parent = child2;
+
+    return {
+        trucks: [parent, child, child2, child3],
+        parentInd: 0,
+        // TODO make cars
+    };
+}
+
+function makeTruck(nodePath, scene, position, velocity = undefined) {
+    let truck = {
+        obj: new THREE.Mesh(
+            new THREE.BoxGeometry(2, 2, 2),
+            new THREE.MeshStandardMaterial(),
+        ),
+        // targetNode: undefined,
+        // sourceNode: undefined,
+        // pathIndex: undefined,
+        path: deepcopy(nodePath),
+        ind: 1,
+        // velocity: 5,
+    };
+
+    if (velocity != undefined) {
+        truck.velocity = velocity;
+    }
+
+    truck.obj.position.x = position.x;
+    truck.obj.position.y = position.y;
+    truck.obj.position.z = position.z;
+
+    scene.add(truck.obj);
+
+    return truck;
 }
