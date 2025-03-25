@@ -1,20 +1,24 @@
 export function trackPlaceableFactory(models, scene) {
-    let makeModelFactory = (name, offset, tiles, nodes) => {
-        let dummyObj = models[name].clone();
+    let makeModelFactory = (names, offset, tiles, nodes) => {
+        // set up dummy object
+        let dummyObj = models[names[0]].clone();
         dummyObj.visible = false;
         dummyObj.material = dummyObj.material.clone();
 
-        let material = dummyObj.material;
-        let transparent = dummyObj.material.clone();
-
-        transparent.transparent = true;
-        transparent.opacity = 0.5;
-
-        // dummyObj.material.transparent = true;
-        // dummyObj.material.opacity = 0.5;
+        let materials = names.map((name) => {
+            let obj = models[name];
+            return obj.material;
+        });
+        let transparents = materials.map((material) => {
+            let transparent = material.clone();
+            transparent.transparent = true;
+            transparent.opacity = 0.5;
+            return transparent;
+        });
 
         scene.add(dummyObj);
 
+        // adjust tiles
         let adjPos = (pos, x, y, z) => {
             pos.x = x + offset;
             pos.y = y;
@@ -45,7 +49,6 @@ export function trackPlaceableFactory(models, scene) {
             return adjPoints(x, z, rot, tiles);
         };
 
-        // deep copy tiles.
         let dummyTiles = adjTiles(0, 0, 0);
 
         let updateDummyPos = (x, y, z, rot) => {
@@ -58,65 +61,77 @@ export function trackPlaceableFactory(models, scene) {
             return dummyTiles;
         };
 
-        // let dummyVisible = (visible) => {
-        //     dummyObj.visible = visible;
-        // };
-        // let dummyPlace
-
         let makeNew = (x, y, z, rot) => {
-            let straitModel = models[name].clone();
-            adjPos(straitModel.position, x, y, z);
-            straitModel.rotation.y = rot;
+            let ind = 0;
+            let newModels = names.map((name) => {
+                let model = models[name].clone();
+                model.visible = false;
+                adjPos(model.position, x, y, z);
+                model.rotation.y = rot;
+                return model;
+            });
+
+            newModels[ind].visible = true;
 
             let worldTiles = adjTiles(x, z, rot);
-            console.log("------");
-
-            let model = straitModel.clone();
 
             // adjust nodes
             if (nodes !== undefined) {
                 var newNodes = nodes.map((nodePath) => {
                     return adjPoints(x, z, rot, nodePath);
-                    // return nodePath.map((node) => {
-                    //     return [node[0] * 2 + x, node[1] * 2 + z];
-                    // });
                 });
             }
 
-            // Path List of List of points
-            // all possible paths through object.
+            let action = undefined;
+            if (names.length > 1) {
+                action = () => {
+                    newModels[ind].visible = false;
+
+                    ind++;
+                    if (ind >= names.length) {
+                        ind = 0;
+                    }
+                    newModels[ind].visible = true;
+
+                    let nextNodes = [];
+                    for (let i = 0; i < newNodes.length; i++) {
+                        let ind = i + 1;
+                        if (ind >= newNodes.length) {
+                            ind -= newNodes.length;
+                        }
+                        nextNodes.push(newNodes[ind]);
+                    }
+                    newNodes = nextNodes;
+                };
+            }
 
             return {
-                mesh: model,
-                // TODO add items
+                getModels: () => newModels,
                 tiles: worldTiles,
                 setTransparent: () => {
-                    model.material = transparent;
+                    newModels[ind].material = transparents[ind];
                 },
                 setOpaque: () => {
-                    model.material = material;
+                    newModels[ind].material = materials[ind];
                 },
-                paths: newNodes,
-                action: undefined,
+                getPaths: () => newNodes,
+                action: action,
             };
         };
-
-        // interface
-        // makeNew()
-        // updateDummyPos(x,y,z)
-        // showDummy()
 
         return {
             make: makeNew,
             updateDummyPos: updateDummyPos,
             // dummyVisible: dummyVisible,
-            dummyObj: dummyObj,
+            getDummyObj: () => {
+                return dummyObj;
+            },
             getDummyTiles: getDummyTiles,
             dummyTransparent: () => {
-                dummyObj.material = transparent;
+                dummyObj.material = transparents[0];
             },
             dummyOpaque: () => {
-                dummyObj.material = material;
+                dummyObj.material = materials[0];
             },
         };
     };
@@ -144,7 +159,7 @@ export function trackPlaceableFactory(models, scene) {
 
     return buildPlaceables([
         {
-            name: "strait",
+            name: ["strait"],
             tiles: [[0, 0]],
             paths: [
                 [
@@ -154,7 +169,7 @@ export function trackPlaceableFactory(models, scene) {
             ],
         },
         {
-            name: "cross",
+            name: ["cross"],
             tiles: [[0, 0]],
             paths: [
                 [
@@ -168,7 +183,7 @@ export function trackPlaceableFactory(models, scene) {
             ],
         },
         {
-            name: "curve-4",
+            name: ["curve-4"],
             offset: 1.0,
             tiles: [
                 [-1, -1],
@@ -186,7 +201,7 @@ export function trackPlaceableFactory(models, scene) {
             paths: [makeCurvePath(4, 8)],
         },
         {
-            name: "curve-6",
+            name: ["curve-6"],
             offset: 1.0,
             tiles: [
                 [-2, -2],
@@ -213,7 +228,7 @@ export function trackPlaceableFactory(models, scene) {
             paths: [makeCurvePath(6, 10)],
         },
         {
-            name: "curve-8",
+            name: ["curve-8"],
             offset: 1.0,
             tiles: [
                 // -3 -> 4
@@ -253,7 +268,7 @@ export function trackPlaceableFactory(models, scene) {
             paths: [makeCurvePath(8, 12)],
         },
         {
-            name: "curve-12",
+            name: ["curve-12"],
             offset: 1.0,
             tiles: [
                 // -5 -> 6
@@ -306,7 +321,7 @@ export function trackPlaceableFactory(models, scene) {
             paths: [makeCurvePath(12, 16)],
         },
         {
-            name: "curve-16",
+            name: ["curve-16"],
             offset: 1.0,
             tiles: [
                 // -7 -> 8
@@ -371,10 +386,65 @@ export function trackPlaceableFactory(models, scene) {
             ],
             paths: [makeCurvePath(16, 24)],
         },
+        {
+            name: ["left_switch_strait", "left_switch_curve"],
+            offset: 1.0,
+            tiles: [
+                [-1, -1],
+                [0, -1],
+                [-1, 0],
+                [0, 0],
+                [-1, 1],
+                [0, 1],
+                [1, 1],
+                [2, 1],
+                [0, 2],
+                [1, 2],
+                [2, 2],
+            ],
+            paths: [
+                [
+                    [-1, -1.5],
+                    [-1, 1.5],
+                ],
+
+                makeCurvePath(4, 8),
+            ],
+        },
+        {
+            name: ["right_switch_strait", "right_switch_curve"],
+            offset: 1.0,
+            tiles: [
+                [-1, 2],
+                [0, 2],
+                [1, 2],
+                // --
+                [-1, 1],
+                [0, 1],
+                [1, 1],
+                [2, 1],
+                // --
+                [1, 0],
+                [2, 0],
+                // --
+                [1, -1],
+                [2, -1],
+            ],
+            paths: [
+                [
+                    [2, -1.5],
+                    [2, 1.5],
+                ],
+
+                makeCurvePath(4, 8, (Math.PI * 3) / 2).map((point) => {
+                    return [point[0] - 4, point[1]];
+                }),
+            ],
+        },
     ]);
 }
 
-function makeCurvePath(radius, steps) {
+function makeCurvePath(radius, steps, start = Math.PI) {
     let adjRadius = radius - 0.5;
     // radius = 0;
     let angle = Math.PI / 2;
@@ -383,7 +453,7 @@ function makeCurvePath(radius, steps) {
     let nodes = [];
     let origin = radius / 2;
 
-    let theta = Math.PI;
+    let theta = start;
     let end = theta + angle;
 
     let addNode = (theta) => {

@@ -62,7 +62,7 @@ export default function makeEngine(settings = {}) {
     );
     gameState.camera.position.z = 30;
     gameState.camera.position.y = 10;
-    gameState.camera.rotateX(Math.PI / 6);
+    gameState.camera.rotateX(Math.PI / 2);
 
     window.addEventListener("resize", () => {
         canvasSizes.width = window.innerWidth;

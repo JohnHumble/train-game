@@ -26,8 +26,8 @@ export function initializeTrainSystem(engine) {
 
             // get closest path
             const thresh = 0.5;
-            for (let i = 0; i < trackObj.paths.length; i++) {
-                let path = deepcopy(trackObj.paths[i]);
+            for (let i = 0; i < trackObj.getPaths().length; i++) {
+                let path = deepcopy(trackObj.getPaths()[i]);
 
                 let distance = distanceSquared(target, path[0]);
                 if (distance < thresh) {
@@ -51,7 +51,7 @@ export function initializeTrainSystem(engine) {
             let trainNodeDistance = distanceSquared(nextNode, trainPos);
 
             if (
-                isBetween(nextNode, trainPos, parentPos) &&
+                gettingFarther(trainPos, nextNode, parentPos) &&
                 trainNodeDistance > 0
             ) {
                 return nextNode;
@@ -102,7 +102,7 @@ export function initializeTrainSystem(engine) {
             let trainNodeDistance = distanceSquared(nextNode, trainPos);
 
             if (
-                isBetween(trainPos, nextNode, parentPos) &&
+                gettingCloser(trainPos, nextNode, parentPos) &&
                 trainNodeDistance > 0
             ) {
                 return nextNode;
@@ -205,7 +205,7 @@ export function initializeTrainSystem(engine) {
                 }
 
                 // distance = distance - magnitude;
-                updateChildPosition(train, distance, parentPos);
+                // updateChildPosition(train, distance, parentPos);
             } else {
                 train.obj.position.x = destX;
                 train.obj.position.z = destZ;
@@ -370,6 +370,14 @@ function isBetween(a, b, c) {
     let bc = distanceSquared(b, c);
     let ac = distanceSquared(a, c);
     return ab <= ac && bc <= ac;
+}
+
+function gettingCloser(source, node, target) {
+    return isBetween(source, node, target) || isBetween(source, target, node);
+}
+
+function gettingFarther(source, node, target) {
+    return isBetween(node, source, target) || isBetween(node, target, source);
 }
 
 function getDistance(a, b) {

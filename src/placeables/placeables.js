@@ -5,12 +5,16 @@ import { deepcopy } from "../utilities.js";
 
 // need to keep track of current placeable object
 
+const ERASE_MODE = "erase";
+const PLACE_MODE = "place";
+const SELECT_MODE = "select";
+
 export function initializePlaceables(engine) {
     engine.addInitRule((state) => {
         let placeables = trackPlaceableFactory(models, state.scene);
 
         let currentPlaceable = "strait";
-        let erase = false;
+        let mode = PLACE_MODE;
         // state.currentPlaceable = "curve-4";
         // let dummyPlaceableObject = undefined;
 
@@ -36,7 +40,7 @@ export function initializePlaceables(engine) {
         }
 
         function updateDummyPosColor() {
-            let dummyObj = placeables[currentPlaceable].dummyObj;
+            // let dummyObj = placeables[currentPlaceable].dummyObj();
             // (dummyObj.visible = true),
             placeables[currentPlaceable].updateDummyPos(
                 placementPosition.x,
@@ -52,24 +56,29 @@ export function initializePlaceables(engine) {
         }
 
         function onMouseMove(event) {
+            if (mode == SELECT_MODE) {
+                return;
+            }
             let position = getTilePosition(event, state, raycaster);
             if (position) {
                 if (pastObj !== undefined) {
                     pastObj.setOpaque();
                 }
-                if (erase) {
+                if (mode == ERASE_MODE) {
                     let key = getGridKey([position.x, position.z]);
                     let obj = state.grid.get(key);
                     if (obj !== undefined) {
                         obj.setTransparent();
                         pastObj = obj;
                     }
-                } else {
+                } else if (mode == PLACE_MODE) {
                     placementPosition = position;
                     updateDummyPosColor();
+                } else {
+                    console.log(`Mode: ${mode}`);
                 }
             } else {
-                placeables[currentPlaceable].dummyObj.visible = false;
+                placeables[currentPlaceable].getDummyObj().visible = false;
             }
         }
 
@@ -77,18 +86,46 @@ export function initializePlaceables(engine) {
             let position = getTilePosition(event, state, raycaster);
 
             if (position) {
-                if (erase) {
+                if (mode == SELECT_MODE) {
+                    console.log("selecting");
                     let key = getGridKey([position.x, position.z]);
                     let obj = state.grid.get(key);
                     if (obj !== undefined) {
-                        state.scene.remove(obj.mesh);
+                        if (obj.action !== undefined) {
+                            obj.action();
+                        }
+                    }
+                    // let mouse = getMouseVec(event, state);
+                    // raycaster.setFromCamera(mouse, state.camera);
+                    // const intersects = raycaster.intersectObjects(
+                    //     state.scene.children,
+                    // );
+
+                    // for (let i = 0; i < intersects.length; i++) {
+                    //     if (intersects[i].action != undefined) {
+                    //         intersects[i].action();
+                    //         return;
+                    //     }
+                    // }
+
+                    // return;
+                }
+
+                if (mode == ERASE_MODE) {
+                    let key = getGridKey([position.x, position.z]);
+                    let obj = state.grid.get(key);
+                    if (obj !== undefined) {
+                        obj.getModels().map((model) => {
+                            state.scene.remove(model);
+                        });
                         obj.tiles.forEach((tile) => {
                             let tileKey = getGridKey(tile);
                             console.log("removing at: " + tileKey);
                             state.grid.delete(tileKey);
                         });
                     }
-                } else {
+                }
+                if (mode == PLACE_MODE) {
                     let placeable = placeables[currentPlaceable].make(
                         position.x,
                         position.y,
@@ -99,7 +136,9 @@ export function initializePlaceables(engine) {
                         // check that space is available
                         let available = isAvailable(placeable.tiles);
                         if (available) {
-                            state.scene.add(placeable.mesh);
+                            placeable.getModels().map((model) => {
+                                state.scene.add(model);
+                            });
 
                             placeable.tiles.forEach((tile) => {
                                 let tileKey = getGridKey(tile);
@@ -107,17 +146,17 @@ export function initializePlaceables(engine) {
                                 state.grid.set(tileKey, placeable);
                             });
 
-                            if (placeable.paths !== undefined) {
+                            if (placeable.getPaths() !== undefined) {
                                 if (state.train == undefined) {
                                     state.train = makeTrain(
-                                        placeable.paths[0],
+                                        placeable.getPaths()[0],
                                         state.scene,
                                     );
                                 }
                             }
                         }
                     } else {
-                        state.scene.add(placeable.mesh);
+                        state.scene.add(placeable.getModels());
                     }
                 }
             }
@@ -130,7 +169,7 @@ export function initializePlaceables(engine) {
         // TODO move this to seperate function
         window.addEventListener("keypress", (event) => {
             // console.log("key pressed: ", event.key);
-            if (event.key == "r" || event.key == "R") {
+            if (event.key.toLowerCase() == "r") {
                 placementRotation += Math.PI / 2;
                 if (placementRotation >= Math.PI * 2) {
                     placementRotation = 0;
@@ -138,7 +177,7 @@ export function initializePlaceables(engine) {
                 updateDummyPosColor();
             }
 
-            if (event.key == "n" || event.key == "N") {
+            if (event.key.toLowerCase() == "n") {
                 let keys = Object.keys(placeables);
                 let ind = 0;
                 for (let i = 0; i < keys.length; i++) {
@@ -150,23 +189,31 @@ export function initializePlaceables(engine) {
                 if (ind >= keys.length) {
                     ind -= keys.length;
                 }
-                placeables[currentPlaceable].dummyObj.visible = false;
+                placeables[currentPlaceable].getDummyObj().visible = false;
                 currentPlaceable = keys[ind];
                 updateDummyPosColor();
 
-                placeables[currentPlaceable].dummyObj.visible = !erase;
+                placeables[currentPlaceable].getDummyObj().visible =
+                    mode == PLACE_MODE;
                 // console.log(currentPlaceable);
             }
 
-            if (event.key == "e") {
-                erase = !erase;
-                if (erase) {
-                    console.log("erase mode");
-                    placeables[currentPlaceable].dummyObj.visible = false;
-                } else {
-                    console.log("place mode");
-                    placeables[currentPlaceable].dummyObj.visible = true;
-                }
+            if (event.key.toLowerCase() == "e") {
+                mode = ERASE_MODE;
+                console.log("erase mode");
+                placeables[currentPlaceable].getDummyObj().visible = false;
+            }
+
+            if (event.key.toLowerCase() == "p") {
+                mode = PLACE_MODE;
+                console.log("place mode");
+                placeables[currentPlaceable].getDummyObj().visible = true;
+            }
+
+            if (event.key.toLowerCase() == "s") {
+                mode = SELECT_MODE;
+                console.log("select mode");
+                placeables[currentPlaceable].getDummyObj().visible = false;
             }
         });
     });
@@ -254,6 +301,7 @@ function makeTrain(nodePath, scene) {
 
     return {
         trucks: [parent, child, child2, child3],
+        // trucks: [parent],
         parentInd: 0,
         // TODO make cars
     };
