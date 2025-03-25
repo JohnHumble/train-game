@@ -1,14 +1,14 @@
-import makeEngine from "../engine.js";
+import { Engine } from "../engine";
 import * as THREE from "three";
 
-var engine = makeEngine({
+var engine = new Engine({
     background: 0xffffff,
 });
 
 // Add game state data.
 engine.addInitRule((state) => {
     state.message = "happy";
-}, 0);
+});
 
 engine.addInitRule((state) => {
     const material = new THREE.MeshToonMaterial();
