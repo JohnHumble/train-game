@@ -1,8 +1,30 @@
-export function trackPlaceableFactory(models, scene) {
-    let makeModelFactory = (names, offset, tiles, nodes) => {
+import * as THREE from "three";
+import { modelsType as ModelsType } from "../loader";
+import { Placeable, PlaceableObject } from "./placeables";
+
+interface Parameters {
+    name: string[];
+    offset?: number | undefined;
+    tiles?: number[][] | undefined;
+    paths: number[][][];
+}
+
+export function trackPlaceableFactory(
+    models: ModelsType,
+    scene: THREE.Scene,
+): { [key: string]: Placeable } {
+    let makeModelFactory = (
+        names: string[],
+        offset: number,
+        tiles: number[][],
+        nodes: number[][][],
+    ): Placeable => {
         // set up dummy object
-        let dummyObj = models[names[0]].clone();
+        let dummyObj: THREE.Mesh = models[names[0]].clone();
         dummyObj.visible = false;
+        if (Array.isArray(dummyObj.material)) {
+            dummyObj.material = dummyObj.material[0];
+        }
         dummyObj.material = dummyObj.material.clone();
 
         let materials = names.map((name) => {
@@ -19,13 +41,18 @@ export function trackPlaceableFactory(models, scene) {
         scene.add(dummyObj);
 
         // adjust tiles
-        let adjPos = (pos, x, y, z) => {
+        let adjPos = (pos: THREE.Vector3, x: number, y: number, z: number) => {
             pos.x = x + offset;
             pos.y = y;
             pos.z = z + offset;
         };
 
-        let adjPoints = (x, z, rot, points) => {
+        let adjPoints = (
+            x: number,
+            z: number,
+            rot: number,
+            points: number[][],
+        ) => {
             let cosTheta = Math.cos(-rot);
             let sinTheta = Math.sin(-rot);
 
@@ -45,13 +72,13 @@ export function trackPlaceableFactory(models, scene) {
             return adjPoints;
         };
 
-        let adjTiles = (x, z, rot) => {
+        let adjTiles = (x: number, z: number, rot: number) => {
             return adjPoints(x, z, rot, tiles);
         };
 
         let dummyTiles = adjTiles(0, 0, 0);
 
-        let updateDummyPos = (x, y, z, rot) => {
+        let updateDummyPos = (x: number, y: number, z: number, rot: number) => {
             adjPos(dummyObj.position, x, y, z);
             dummyObj.rotation.y = rot;
             dummyTiles = adjTiles(x, z, rot);
@@ -61,7 +88,12 @@ export function trackPlaceableFactory(models, scene) {
             return dummyTiles;
         };
 
-        let makeNew = (x, y, z, rot) => {
+        let makeNew = (
+            x: number,
+            y: number,
+            z: number,
+            rot: number,
+        ): PlaceableObject => {
             let ind = 0;
             let newModels = names.map((name) => {
                 let model = models[name].clone();
@@ -136,11 +168,13 @@ export function trackPlaceableFactory(models, scene) {
         };
     };
 
-    let buildPlaceables = (params) => {
-        let placeables = {};
+    let buildPlaceables = (
+        params: Parameters[],
+    ): { [key: string]: Placeable } => {
+        let placeables: { [key: string]: Placeable } = {};
 
-        params.forEach((param) => {
-            placeables[param.name] = makeModelFactory(
+        params.forEach((param: Parameters) => {
+            placeables[param.name[0]] = makeModelFactory(
                 param.name,
                 param.offset ?? 0,
                 param.tiles ?? [],
@@ -444,19 +478,23 @@ export function trackPlaceableFactory(models, scene) {
     ]);
 }
 
-function makeCurvePath(radius, steps, start = Math.PI) {
+function makeCurvePath(
+    radius: number,
+    steps: number,
+    start = Math.PI,
+): number[][] {
     let adjRadius = radius - 0.5;
     // radius = 0;
     let angle = Math.PI / 2;
     let stepSize = angle / steps;
 
-    let nodes = [];
+    let nodes: number[][] = [];
     let origin = radius / 2;
 
     let theta = start;
     let end = theta + angle;
 
-    let addNode = (theta) => {
+    let addNode = (theta: number) => {
         let x = adjRadius * Math.cos(theta) + origin + 0.5;
         let z = -adjRadius * Math.sin(theta) - origin + 0.5;
 
@@ -473,7 +511,7 @@ function makeCurvePath(radius, steps, start = Math.PI) {
     let lastX = lastNode[0];
     let lastZ = lastNode[1];
 
-    let isBad = (n) => {
+    let isBad = (n: number) => {
         let adjN = n * 2;
         return Math.abs(Math.round(adjN) - adjN) > thresh;
     };

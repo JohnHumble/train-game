@@ -1,20 +1,24 @@
-import makeEngine from "./engine.js";
-import { initializeCamera, initializeWorld } from "./world.js";
-import { initializePlaceables } from "./placeables/placeables.js";
-import { loadModels } from "./loader.js";
-import { initializeTrainSystem } from "./trains.js";
+import { Engine } from "./engine";
+import { initializeCamera, initializeWorld } from "./world";
+import { initializePlaceables } from "./placeables/placeables";
+import { loadModels } from "./loader";
+import { initializeTrainSystem } from "./trains";
 
-var engine = makeEngine();
+async function main() {
+    var engine = new Engine();
 
-// load models
-await loadModels();
+    // load models
+    await loadModels();
 
-// initialize world
-initializeCamera(engine);
-initializeWorld(engine);
+    // initialize world
+    initializeCamera(engine);
+    initializeWorld(engine);
 
-// add placeables
-initializePlaceables(engine);
-initializeTrainSystem(engine);
+    // add placeables
+    initializePlaceables(engine);
+    initializeTrainSystem(engine);
 
-engine.start();
+    engine.start();
+}
+
+main();

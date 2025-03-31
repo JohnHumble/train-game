@@ -1,12 +1,20 @@
 // Singleton module, There should only ever be one of these at a time it will share the game state data with all instances.
-import { error } from "console";
 import * as THREE from "three";
+import { Train } from "./placeables/placeables";
 
-interface State {
+export interface GameState {
     canvasRect: DOMRect;
     renderer: THREE.WebGLRenderer;
     scene: THREE.Scene;
     camera: THREE.PerspectiveCamera;
+
+    ambientLight: THREE.AmbientLight;
+    sunLight: THREE.DirectionalLight;
+    groundPlane: THREE.Mesh;
+    controls: any;
+
+    grid: Map<string, any>;
+    train: Train;
 }
 
 type RuleFunction = (state: any) => void;
@@ -32,7 +40,7 @@ export class Engine {
         const canvas = document.getElementById("canvas-box");
 
         if (!canvas) {
-            throw error("Could not load canvas for game engine.");
+            throw console.error("Could not load canvas for game engine.");
         }
 
         let canvasRect = canvas.getBoundingClientRect();
@@ -140,7 +148,7 @@ export class Engine {
     public addRule(rule: RuleFunction, runRate: number) {
         let msRunRate = runRate * 1000;
         if (runRate > 0) {
-            let innerRule = (gameState: State) => {
+            let innerRule = (gameState: GameState) => {
                 return new Promise(() => {
                     if (!this.running) {
                         return;

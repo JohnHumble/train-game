@@ -1,9 +1,10 @@
-import { getGridKey } from "./placeables/placeables.js";
+import { Engine, GameState } from "./engine.js";
+import { getGridKey, Train, Truck } from "./placeables/placeables.js";
 import { deepcopy } from "./utilities.js";
 
-export function initializeTrainSystem(engine) {
+export function initializeTrainSystem(engine: Engine) {
     // Train update function.
-    engine.addUpdateRule((state, deltaSeconds) => {
+    engine.addUpdateRule((state: GameState, deltaSeconds: number) => {
         let fullTrain = state.train;
         let grid = state.grid;
 
@@ -18,7 +19,7 @@ export function initializeTrainSystem(engine) {
         //     train.obj.position.z,
         // ]);
 
-        let getPath = (point, target) => {
+        let getPath = (point: number[], target: number[]) => {
             let trackObj = getGridObj(grid, point);
             if (trackObj == undefined) {
                 return undefined;
@@ -43,7 +44,7 @@ export function initializeTrainSystem(engine) {
             return undefined;
         };
 
-        let getNextNodeInvers = (train, parentPos) => {
+        let getNextNodeInvers = (train: Truck, parentPos: number[]) => {
             let trainPos = [train.obj.position.x, train.obj.position.z];
 
             let nextNode = train.path[train.ind];
@@ -94,7 +95,7 @@ export function initializeTrainSystem(engine) {
             return undefined;
         };
 
-        let getNextNode = (train, parentPos) => {
+        let getNextNode = (train: Truck, parentPos: number[]) => {
             let trainPos = [train.obj.position.x, train.obj.position.z];
 
             let nextNode = train.path[train.ind];
@@ -145,7 +146,11 @@ export function initializeTrainSystem(engine) {
             return undefined;
         };
 
-        let updateChildPosition = (train, distance, parentPos) => {
+        let updateChildPosition = (
+            train: Truck,
+            distance: number,
+            parentPos: number[],
+        ) => {
             if (distance == undefined || parentPos == undefined) {
                 return undefined;
             }
@@ -221,7 +226,7 @@ export function initializeTrainSystem(engine) {
                     //     ],
                     // );
                     // let childOffset = childDistance - train.spacing;
-                    updateChildPosition(train.child, train.spacing, [
+                    updateChildPosition(train.child, train.spacing ?? 0, [
                         destX,
                         destZ,
                     ]);
@@ -234,7 +239,7 @@ export function initializeTrainSystem(engine) {
             // let childOffset = childDistance - distance;
         };
 
-        let updateDrivePosition = (distance, train) => {
+        let updateDrivePosition = (distance: number, train: Truck) => {
             // let trackObj = getGridObj(grid, [
             //     train.obj.position.x,
             //     train.obj.position.z,
@@ -308,7 +313,7 @@ export function initializeTrainSystem(engine) {
                     //     ],
                     // );
                     // let childOffset = childDistance - train.spacing;
-                    updateChildPosition(train.child, train.spacing, [
+                    updateChildPosition(train.child, train.spacing ?? 0, [
                         destX,
                         destZ,
                     ]);
@@ -317,12 +322,12 @@ export function initializeTrainSystem(engine) {
         };
 
         let ptrain = fullTrain.trucks[fullTrain.parentInd];
-        let distance = ptrain.velocity * deltaSeconds;
+        let distance = ptrain.velocity ?? 0 * deltaSeconds;
         updateDrivePosition(distance, ptrain);
     });
 }
 
-function dirTo(sourceNode, targetNode) {
+function dirTo(sourceNode: number[], targetNode: number[]): [number[], number] {
     // get source and destination
     let sourceX = sourceNode[0];
     let sourceZ = sourceNode[1];
@@ -341,7 +346,11 @@ function dirTo(sourceNode, targetNode) {
     return [[dirX, dirZ], magnitude];
 }
 
-function getDestination(sourceNode, targetNode, distance) {
+function getDestination(
+    sourceNode: number[],
+    targetNode: number[],
+    distance: number,
+): [number[], number] {
     // // get source and destination
     let sourceX = sourceNode[0];
     let sourceZ = sourceNode[1];
@@ -365,32 +374,43 @@ function getDestination(sourceNode, targetNode, distance) {
     return [[destX, destZ], magnitude];
 }
 
-function isBetween(a, b, c) {
+function isBetween(a: number[], b: number[], c: number[]): boolean {
     let ab = distanceSquared(a, b);
     let bc = distanceSquared(b, c);
     let ac = distanceSquared(a, c);
     return ab <= ac && bc <= ac;
 }
 
-function gettingCloser(source, node, target) {
+function gettingCloser(
+    source: number[],
+    node: number[],
+    target: number[],
+): boolean {
     return isBetween(source, node, target) || isBetween(source, target, node);
 }
 
-function gettingFarther(source, node, target) {
+function gettingFarther(
+    source: number[],
+    node: number[],
+    target: number[],
+): boolean {
     return isBetween(node, source, target) || isBetween(node, target, source);
 }
 
-function getDistance(a, b) {
+function getDistance(a: number[], b: number[]): number {
     return Math.sqrt(distanceSquared(a, b));
 }
 
-function distanceSquared(a, b) {
+function distanceSquared(a: number[], b: number[]): number {
     let x = b[0] - a[0];
     let y = b[1] - a[1];
     return x * x + y * y;
 }
 
-function getGridObj(grid, gridIndex) {
+function getGridObj<T>(
+    grid: Map<string, T>,
+    gridIndex: number[],
+): T | undefined {
     let key = getGridKey(gridIndex);
     return grid.get(key);
 }

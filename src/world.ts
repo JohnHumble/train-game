@@ -1,9 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
+import { Engine, GameState } from "./engine";
 
-export function initializeWorld(engine) {
+export function initializeWorld(engine: Engine) {
     // add world objects.
-    engine.addInitRule((state) => {
+    engine.addInitRule((state: GameState) => {
         // lights
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         state.ambientLight = ambientLight;
@@ -31,9 +32,9 @@ export function initializeWorld(engine) {
     });
 }
 
-export function initializeCamera(engine) {
+export function initializeCamera(engine: Engine) {
     // add camera controls
-    engine.addInitRule((state) => {
+    engine.addInitRule((state: GameState) => {
         state.controls = new OrbitControls(
             state.camera,
             state.renderer.domElement,

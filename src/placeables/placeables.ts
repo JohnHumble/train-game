@@ -1,7 +1,8 @@
 import * as THREE from "three";
-import { trackPlaceableFactory } from "./track.js";
-import { models } from "../loader.js";
-import { deepcopy } from "../utilities.js";
+import { trackPlaceableFactory } from "./track";
+import { models } from "../loader";
+import { deepcopy } from "../utilities";
+import { Engine, GameState } from "../engine";
 
 // need to keep track of current placeable object
 
@@ -9,8 +10,26 @@ const ERASE_MODE = "erase";
 const PLACE_MODE = "place";
 const SELECT_MODE = "select";
 
-export function initializePlaceables(engine) {
-    engine.addInitRule((state) => {
+export interface PlaceableObject {
+    getModels: () => THREE.Object3D[];
+    tiles: number[][];
+    setTransparent: () => void;
+    setOpaque: () => void;
+    getPaths: () => number[][][];
+    action: (() => void) | undefined;
+}
+
+export interface Placeable {
+    make: (x: number, y: number, z: number, rot: number) => PlaceableObject;
+    updateDummyPos: (x: number, y: number, z: number, rot: number) => void;
+    getDummyObj: () => THREE.Mesh;
+    getDummyTiles: () => number[][];
+    dummyTransparent: () => void;
+    dummyOpaque: () => void;
+}
+
+export function initializePlaceables(engine: Engine) {
+    engine.addInitRule((state: GameState) => {
         let placeables = trackPlaceableFactory(models, state.scene);
 
         let currentPlaceable = "strait";
@@ -24,13 +43,13 @@ export function initializePlaceables(engine) {
         let placementRotation = 0;
         let placementPosition = new THREE.Vector3();
 
-        let pastObj = undefined;
+        let pastObj: PlaceableObject | undefined = undefined;
 
         // Game world grid
         // x-y: object
         state.grid = new Map();
 
-        function isAvailable(tiles) {
+        function isAvailable(tiles: number[][]) {
             let available = true;
             tiles.forEach((tile) => {
                 let tileKey = getGridKey(tile);
@@ -55,7 +74,7 @@ export function initializePlaceables(engine) {
             }
         }
 
-        function onMouseMove(event) {
+        function onMouseMove(event: MouseEvent) {
             if (mode == SELECT_MODE) {
                 return;
             }
@@ -82,7 +101,7 @@ export function initializePlaceables(engine) {
             }
         }
 
-        function onMouseClick(event) {
+        function onMouseClick(event: MouseEvent) {
             let position = getTilePosition(event, state, raycaster);
 
             if (position) {
@@ -115,10 +134,10 @@ export function initializePlaceables(engine) {
                     let key = getGridKey([position.x, position.z]);
                     let obj = state.grid.get(key);
                     if (obj !== undefined) {
-                        obj.getModels().map((model) => {
+                        obj.getModels().map((model: any) => {
                             state.scene.remove(model);
                         });
-                        obj.tiles.forEach((tile) => {
+                        obj.tiles.forEach((tile: number[]) => {
                             let tileKey = getGridKey(tile);
                             console.log("removing at: " + tileKey);
                             state.grid.delete(tileKey);
@@ -156,7 +175,9 @@ export function initializePlaceables(engine) {
                             }
                         }
                     } else {
-                        state.scene.add(placeable.getModels());
+                        placeable.getModels().forEach((model) => {
+                            state.scene.add(model);
+                        });
                     }
                 }
             }
@@ -219,14 +240,18 @@ export function initializePlaceables(engine) {
     });
 }
 
-export function getGridKey(tile) {
+export function getGridKey(tile: number[]): string {
     let x = Math.round(tile[0] / 2);
     let z = Math.round(tile[1] / 2);
     let tileKey = `${x}-${z}`;
     return tileKey;
 }
 
-function getTilePosition(event, state, raycaster) {
+function getTilePosition(
+    event: MouseEvent,
+    state: GameState,
+    raycaster: THREE.Raycaster,
+): THREE.Vector3 | undefined {
     let mouse = getMouseVec(event, state);
 
     // update raycaster
@@ -249,7 +274,7 @@ function getTilePosition(event, state, raycaster) {
     return undefined;
 }
 
-function getGroundIntersect(intersects) {
+function getGroundIntersect(intersects: any) {
     for (let i = 0; i < intersects.length; i++) {
         if (intersects[i].object.name == "ground-plane") {
             return intersects[i];
@@ -258,7 +283,7 @@ function getGroundIntersect(intersects) {
     return undefined;
 }
 
-function getMouseVec(event, state) {
+function getMouseVec(event: MouseEvent, state: GameState) {
     let x =
         ((event.clientX - state.canvasRect.left) / window.innerWidth) * 2 - 1;
     let y =
@@ -267,7 +292,12 @@ function getMouseVec(event, state) {
     return new THREE.Vector2(x, y);
 }
 
-function makeTrain(nodePath, scene) {
+export interface Train {
+    trucks: Truck[];
+    parentInd: number;
+}
+
+function makeTrain(nodePath: number[][], scene: THREE.Scene): Train {
     let x = nodePath[0][0];
     let y = 1.3;
     let z = nodePath[0][1];
@@ -307,8 +337,23 @@ function makeTrain(nodePath, scene) {
     };
 }
 
-function makeTruck(nodePath, scene, position, velocity = undefined) {
-    let truck = {
+export interface Truck {
+    obj: THREE.Mesh;
+    path: number[][];
+    ind: number;
+    velocity: number | undefined;
+    parent: Truck | undefined;
+    child: Truck | undefined;
+    spacing: number | undefined;
+}
+
+function makeTruck(
+    nodePath: number[][],
+    scene: THREE.Scene,
+    position: THREE.Vector3,
+    velocity: number | undefined = undefined,
+): Truck {
+    let truck: Truck = {
         obj: new THREE.Mesh(
             new THREE.BoxGeometry(2, 2, 2),
             new THREE.MeshStandardMaterial(),
@@ -319,6 +364,10 @@ function makeTruck(nodePath, scene, position, velocity = undefined) {
         path: deepcopy(nodePath),
         ind: 1,
         // velocity: 5,
+        velocity: undefined,
+        parent: undefined,
+        child: undefined,
+        spacing: undefined,
     };
 
     if (velocity != undefined) {
