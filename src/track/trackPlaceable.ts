@@ -1,12 +1,12 @@
 import * as THREE from "three";
 import { modelsType as ModelsType } from "../loader";
-import { Placeable, PlaceableObject } from "./placeables";
+import { Placeable, PlaceableObject } from "../placeables/placeables";
 
 interface Parameters {
     name: string[];
     offset?: number | undefined;
-    tiles?: number[][] | undefined;
-    paths: number[][][];
+    tiles?: [number, number][] | undefined;
+    paths: [number, number][][];
 }
 
 export function trackPlaceableFactory(
@@ -16,8 +16,8 @@ export function trackPlaceableFactory(
     let makeModelFactory = (
         names: string[],
         offset: number,
-        tiles: number[][],
-        nodes: number[][][],
+        tiles: [number, number][],
+        nodes: [number, number][][],
     ): Placeable => {
         // set up dummy object
         let dummyObj: THREE.Mesh = models[names[0]].clone();
@@ -51,13 +51,13 @@ export function trackPlaceableFactory(
             x: number,
             z: number,
             rot: number,
-            points: number[][],
+            points: [number, number][],
         ) => {
             let cosTheta = Math.cos(-rot);
             let sinTheta = Math.sin(-rot);
 
             // adjust tiles
-            let adjPoints = points.map((point) => {
+            let adjPoints: [number, number][] = points.map((point) => {
                 // NOTE remove *2 if we have the scale of everything
                 let pointOff = offset / 2;
                 let rootX = point[0] - pointOff;
@@ -109,7 +109,7 @@ export function trackPlaceableFactory(
 
             // adjust nodes
             if (nodes !== undefined) {
-                var newNodes = nodes.map((nodePath) => {
+                var newNodes: [number, number][][] = nodes.map((nodePath) => {
                     return adjPoints(x, z, rot, nodePath);
                 });
             }
@@ -482,13 +482,13 @@ function makeCurvePath(
     radius: number,
     steps: number,
     start = Math.PI,
-): number[][] {
+): [number, number][] {
     let adjRadius = radius - 0.5;
     // radius = 0;
     let angle = Math.PI / 2;
     let stepSize = angle / steps;
 
-    let nodes: number[][] = [];
+    let nodes: [number, number][] = [];
     let origin = radius / 2;
 
     let theta = start;

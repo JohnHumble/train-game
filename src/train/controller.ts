@@ -1,6 +1,7 @@
-import { Engine, GameState } from "./engine.js";
-import { getGridKey, Train, Truck } from "./placeables/placeables.js";
-import { deepcopy } from "./utilities.js";
+import { Engine, GameState } from "../enigne/engine";
+import { getGridKey } from "../placeables/placeables";
+import { Train, Truck } from "./train";
+import { deepcopy, getDistance, distanceSquared } from "../utilities";
 
 export function initializeTrainSystem(engine: Engine) {
     // Train update function.
@@ -19,7 +20,7 @@ export function initializeTrainSystem(engine: Engine) {
         //     train.obj.position.z,
         // ]);
 
-        let getPath = (point: number[], target: number[]) => {
+        let getPath = (point: [number, number], target: [number, number]) => {
             let trackObj = getGridObj(grid, point);
             if (trackObj == undefined) {
                 return undefined;
@@ -44,8 +45,11 @@ export function initializeTrainSystem(engine: Engine) {
             return undefined;
         };
 
-        let getNextNodeInvers = (train: Truck, parentPos: number[]) => {
-            let trainPos = [train.obj.position.x, train.obj.position.z];
+        let getNextNodeInvers = (train: Truck, parentPos: [number, number]) => {
+            let trainPos: [number, number] = [
+                train.obj.position.x,
+                train.obj.position.z,
+            ];
 
             let nextNode = train.path[train.ind];
 
@@ -95,8 +99,11 @@ export function initializeTrainSystem(engine: Engine) {
             return undefined;
         };
 
-        let getNextNode = (train: Truck, parentPos: number[]) => {
-            let trainPos = [train.obj.position.x, train.obj.position.z];
+        let getNextNode = (train: Truck, parentPos: [number, number]) => {
+            let trainPos: [number, number] = [
+                train.obj.position.x,
+                train.obj.position.z,
+            ];
 
             let nextNode = train.path[train.ind];
 
@@ -149,8 +156,8 @@ export function initializeTrainSystem(engine: Engine) {
         let updateChildPosition = (
             train: Truck,
             distance: number,
-            parentPos: number[],
-        ) => {
+            parentPos: [number, number],
+        ): void => {
             if (distance == undefined || parentPos == undefined) {
                 return undefined;
             }
@@ -259,7 +266,10 @@ export function initializeTrainSystem(engine: Engine) {
                 distance *= -1;
             }
 
-            let sourceNode = [train.obj.position.x, train.obj.position.z];
+            let sourceNode: [number, number] = [
+                train.obj.position.x,
+                train.obj.position.z,
+            ];
             let targetNode = train.path[train.ind];
 
             let [[destX, destZ], magnitude] = getDestination(
@@ -322,7 +332,8 @@ export function initializeTrainSystem(engine: Engine) {
         };
 
         let ptrain = fullTrain.trucks[fullTrain.parentInd];
-        let distance = ptrain.velocity ?? 0 * deltaSeconds;
+        let velocity = ptrain.velocity ?? 0;
+        let distance = velocity * deltaSeconds;
         updateDrivePosition(distance, ptrain);
     });
 }
@@ -347,10 +358,10 @@ function dirTo(sourceNode: number[], targetNode: number[]): [number[], number] {
 }
 
 function getDestination(
-    sourceNode: number[],
-    targetNode: number[],
+    sourceNode: [number, number],
+    targetNode: [number, number],
     distance: number,
-): [number[], number] {
+): [[number, number], number] {
     // // get source and destination
     let sourceX = sourceNode[0];
     let sourceZ = sourceNode[1];
@@ -374,7 +385,11 @@ function getDestination(
     return [[destX, destZ], magnitude];
 }
 
-function isBetween(a: number[], b: number[], c: number[]): boolean {
+function isBetween(
+    a: [number, number],
+    b: [number, number],
+    c: [number, number],
+): boolean {
     let ab = distanceSquared(a, b);
     let bc = distanceSquared(b, c);
     let ac = distanceSquared(a, c);
@@ -382,29 +397,19 @@ function isBetween(a: number[], b: number[], c: number[]): boolean {
 }
 
 function gettingCloser(
-    source: number[],
-    node: number[],
-    target: number[],
+    source: [number, number],
+    node: [number, number],
+    target: [number, number],
 ): boolean {
     return isBetween(source, node, target) || isBetween(source, target, node);
 }
 
 function gettingFarther(
-    source: number[],
-    node: number[],
-    target: number[],
+    source: [number, number],
+    node: [number, number],
+    target: [number, number],
 ): boolean {
     return isBetween(node, source, target) || isBetween(node, target, source);
-}
-
-function getDistance(a: number[], b: number[]): number {
-    return Math.sqrt(distanceSquared(a, b));
-}
-
-function distanceSquared(a: number[], b: number[]): number {
-    let x = b[0] - a[0];
-    let y = b[1] - a[1];
-    return x * x + y * y;
 }
 
 function getGridObj<T>(

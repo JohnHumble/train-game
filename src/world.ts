@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/Addons.js";
-import { Engine, GameState } from "./engine";
+import { Engine, GameState } from "./enigne/engine";
 
 export function initializeWorld(engine: Engine) {
     // add world objects.

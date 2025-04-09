@@ -1,8 +1,8 @@
-import { Engine } from "./engine";
+import { Engine } from "./enigne/engine";
 import { initializeCamera, initializeWorld } from "./world";
 import { initializePlaceables } from "./placeables/placeables";
 import { loadModels } from "./loader";
-import { initializeTrainSystem } from "./trains";
+import { initializeTrainSystem } from "./train/controller";
 
 async function main() {
     var engine = new Engine();

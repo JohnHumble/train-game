@@ -1,8 +1,9 @@
 import * as THREE from "three";
-import { trackPlaceableFactory } from "./track";
+import { trackPlaceableFactory } from "../track/trackPlaceable";
 import { models } from "../loader";
 import { deepcopy } from "../utilities";
-import { Engine, GameState } from "../engine";
+import { Engine, GameState } from "../enigne/engine";
+import { makeTrain } from "../train/train";
 
 // need to keep track of current placeable object
 
@@ -15,7 +16,7 @@ export interface PlaceableObject {
     tiles: number[][];
     setTransparent: () => void;
     setOpaque: () => void;
-    getPaths: () => number[][][];
+    getPaths: () => [number, number][][];
     action: (() => void) | undefined;
 }
 
@@ -34,8 +35,6 @@ export function initializePlaceables(engine: Engine) {
 
         let currentPlaceable = "strait";
         let mode = PLACE_MODE;
-        // state.currentPlaceable = "curve-4";
-        // let dummyPlaceableObject = undefined;
 
         // add placeable mouse click event
         const raycaster = new THREE.Raycaster();
@@ -46,7 +45,6 @@ export function initializePlaceables(engine: Engine) {
         let pastObj: PlaceableObject | undefined = undefined;
 
         // Game world grid
-        // x-y: object
         state.grid = new Map();
 
         function isAvailable(tiles: number[][]) {
@@ -59,8 +57,6 @@ export function initializePlaceables(engine: Engine) {
         }
 
         function updateDummyPosColor() {
-            // let dummyObj = placeables[currentPlaceable].dummyObj();
-            // (dummyObj.visible = true),
             placeables[currentPlaceable].updateDummyPos(
                 placementPosition.x,
                 placementPosition.y,
@@ -114,20 +110,6 @@ export function initializePlaceables(engine: Engine) {
                             obj.action();
                         }
                     }
-                    // let mouse = getMouseVec(event, state);
-                    // raycaster.setFromCamera(mouse, state.camera);
-                    // const intersects = raycaster.intersectObjects(
-                    //     state.scene.children,
-                    // );
-
-                    // for (let i = 0; i < intersects.length; i++) {
-                    //     if (intersects[i].action != undefined) {
-                    //         intersects[i].action();
-                    //         return;
-                    //     }
-                    // }
-
-                    // return;
                 }
 
                 if (mode == ERASE_MODE) {
@@ -189,7 +171,6 @@ export function initializePlaceables(engine: Engine) {
 
         // TODO move this to seperate function
         window.addEventListener("keypress", (event) => {
-            // console.log("key pressed: ", event.key);
             if (event.key.toLowerCase() == "r") {
                 placementRotation += Math.PI / 2;
                 if (placementRotation >= Math.PI * 2) {
@@ -216,7 +197,6 @@ export function initializePlaceables(engine: Engine) {
 
                 placeables[currentPlaceable].getDummyObj().visible =
                     mode == PLACE_MODE;
-                // console.log(currentPlaceable);
             }
 
             if (event.key.toLowerCase() == "e") {
@@ -290,95 +270,4 @@ function getMouseVec(event: MouseEvent, state: GameState) {
         ((-event.clientY + state.canvasRect.top) / window.innerHeight) * 2 + 1;
 
     return new THREE.Vector2(x, y);
-}
-
-export interface Train {
-    trucks: Truck[];
-    parentInd: number;
-}
-
-function makeTrain(nodePath: number[][], scene: THREE.Scene): Train {
-    let x = nodePath[0][0];
-    let y = 1.3;
-    let z = nodePath[0][1];
-
-    let pos = new THREE.Vector3(x, y, z);
-
-    let parent = makeTruck(nodePath, scene, pos, 5);
-
-    parent.spacing = 4.8;
-    pos.x -= parent.spacing;
-
-    let child = makeTruck(nodePath, scene, pos);
-
-    // set relationships
-    parent.child = child;
-    child.parent = parent;
-
-    child.spacing = 2.7;
-    pos.x -= child.spacing;
-    let child2 = makeTruck(nodePath, scene, pos);
-
-    child.child = child2;
-    child2.parent = child;
-
-    child2.spacing = 4.0;
-    pos.x -= child2.spacing;
-    let child3 = makeTruck(nodePath, scene, pos);
-
-    child2.child = child3;
-    child3.parent = child2;
-
-    return {
-        trucks: [parent, child, child2, child3],
-        // trucks: [parent],
-        parentInd: 0,
-        // TODO make cars
-    };
-}
-
-export interface Truck {
-    obj: THREE.Mesh;
-    path: number[][];
-    ind: number;
-    velocity: number | undefined;
-    parent: Truck | undefined;
-    child: Truck | undefined;
-    spacing: number | undefined;
-}
-
-function makeTruck(
-    nodePath: number[][],
-    scene: THREE.Scene,
-    position: THREE.Vector3,
-    velocity: number | undefined = undefined,
-): Truck {
-    let truck: Truck = {
-        obj: new THREE.Mesh(
-            new THREE.BoxGeometry(2, 2, 2),
-            new THREE.MeshStandardMaterial(),
-        ),
-        // targetNode: undefined,
-        // sourceNode: undefined,
-        // pathIndex: undefined,
-        path: deepcopy(nodePath),
-        ind: 1,
-        // velocity: 5,
-        velocity: undefined,
-        parent: undefined,
-        child: undefined,
-        spacing: undefined,
-    };
-
-    if (velocity != undefined) {
-        truck.velocity = velocity;
-    }
-
-    truck.obj.position.x = position.x;
-    truck.obj.position.y = position.y;
-    truck.obj.position.z = position.z;
-
-    scene.add(truck.obj);
-
-    return truck;
 }

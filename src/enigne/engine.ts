@@ -1,6 +1,6 @@
 // Singleton module, There should only ever be one of these at a time it will share the game state data with all instances.
 import * as THREE from "three";
-import { Train } from "./placeables/placeables";
+import { Train } from "../train/train";
 
 export interface GameState {
     canvasRect: DOMRect;
