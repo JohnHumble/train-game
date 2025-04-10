@@ -151,6 +151,7 @@ export function initializePlaceables(engine: Engine) {
                                 if (state.train == undefined) {
                                     state.train = makeTrain(
                                         placeable.getPaths()[0],
+                                        models,
                                         state.scene,
                                     );
                                 }

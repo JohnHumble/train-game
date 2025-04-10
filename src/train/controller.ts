@@ -1,6 +1,6 @@
 import { Engine, GameState } from "../enigne/engine";
 import { getGridKey } from "../placeables/placeables";
-import { Train, Truck } from "./train";
+import { Train, Truck, Wagon } from "./train";
 import { deepcopy, getDistance, distanceSquared } from "../utilities";
 
 export function initializeTrainSystem(engine: Engine) {
@@ -80,7 +80,7 @@ export function initializeTrainSystem(engine: Engine) {
             }
 
             // get next path
-            let [checkPos, _] = getDestination(trainPos, parentPos, -2.0);
+            let [checkPos, _1, _] = getDestination(trainPos, parentPos, -2.0);
 
             let newPath = getPath(checkPos, train.path[train.path.length - 1]);
             if (newPath != undefined) {
@@ -134,7 +134,7 @@ export function initializeTrainSystem(engine: Engine) {
             }
 
             // get next path
-            let [checkPos, _] = getDestination(trainPos, parentPos, 2.0);
+            let [checkPos, _1, _] = getDestination(trainPos, parentPos, 2.0);
 
             let newPath = getPath(checkPos, train.path[train.path.length - 1]);
             if (newPath != undefined) {
@@ -187,7 +187,7 @@ export function initializeTrainSystem(engine: Engine) {
                 return;
             }
 
-            let [[destX, destZ], magnitude] = getDestination(
+            let [[destX, destZ], rotation, magnitude] = getDestination(
                 [trainX, trainZ],
                 nextNode,
                 offset,
@@ -198,13 +198,18 @@ export function initializeTrainSystem(engine: Engine) {
                 // if (false) {
                 train.obj.position.x = nextNode[0];
                 train.obj.position.z = nextNode[1];
+                train.obj.rotation.y = rotation;
 
                 // increment the node index
                 train.ind++;
 
                 // if index goes outside of path, get the next path.
                 if (train.ind >= train.path.length) {
-                    let [next, _] = getDestination(nextNode, parentPos, 1.0);
+                    let [next, _1, _] = getDestination(
+                        nextNode,
+                        parentPos,
+                        1.0,
+                    );
                     let nextPath = getPath(next, nextNode);
 
                     if (nextPath == undefined) {
@@ -221,6 +226,7 @@ export function initializeTrainSystem(engine: Engine) {
             } else {
                 train.obj.position.x = destX;
                 train.obj.position.z = destZ;
+                train.obj.rotation.y = rotation;
 
                 // TODO figure this out
                 if (train.child !== undefined) {
@@ -272,7 +278,7 @@ export function initializeTrainSystem(engine: Engine) {
             ];
             let targetNode = train.path[train.ind];
 
-            let [[destX, destZ], magnitude] = getDestination(
+            let [[destX, destZ], rotation, magnitude] = getDestination(
                 sourceNode,
                 targetNode,
                 distance,
@@ -285,6 +291,7 @@ export function initializeTrainSystem(engine: Engine) {
             if (distance >= magnitude) {
                 train.obj.position.x = targetNode[0];
                 train.obj.position.z = targetNode[1];
+                train.obj.rotation.y = rotation;
 
                 // increment the node index
                 train.ind++;
@@ -311,6 +318,7 @@ export function initializeTrainSystem(engine: Engine) {
             } else {
                 train.obj.position.x = destX;
                 train.obj.position.z = destZ;
+                train.obj.rotation.y = rotation;
 
                 // TODO figure this out
                 if (train.child !== undefined) {
@@ -331,14 +339,49 @@ export function initializeTrainSystem(engine: Engine) {
             }
         };
 
+        // update wagons
+        let updateWagon = (wagon: Wagon) => {
+            let totalX = 0;
+            // let totalY = 0;
+            let totalZ = 0;
+            wagon.trucks.forEach((truck) => {
+                totalX += truck.obj.position.x;
+                // totalY += truck.obj.position.y;
+                totalZ += truck.obj.position.z;
+            });
+
+            let x = totalX / wagon.trucks.length;
+            // let y = totalY / wagon.trucks.length;
+            let z = totalZ / wagon.trucks.length;
+
+            wagon.obj.position.x = x;
+            // wagon.obj.position.y = y;
+            wagon.obj.position.z = z;
+
+            let firstTruckPos = wagon.trucks[0].obj.position;
+            let lastTruckPos =
+                wagon.trucks[wagon.trucks.length - 1].obj.position;
+
+            let [_vec, rotation, _mag] = dirTo(
+                [firstTruckPos.x, firstTruckPos.z],
+                [lastTruckPos.x, lastTruckPos.z],
+            );
+            wagon.obj.rotation.y = rotation;
+        };
+
         let ptrain = fullTrain.trucks[fullTrain.parentInd];
         let velocity = ptrain.velocity ?? 0;
         let distance = velocity * deltaSeconds;
         updateDrivePosition(distance, ptrain);
+
+        fullTrain.wagons.forEach(updateWagon);
     });
 }
 
-function dirTo(sourceNode: number[], targetNode: number[]): [number[], number] {
+function dirTo(
+    sourceNode: number[],
+    targetNode: number[],
+): [number[], number, number] {
     // get source and destination
     let sourceX = sourceNode[0];
     let sourceZ = sourceNode[1];
@@ -354,14 +397,16 @@ function dirTo(sourceNode: number[], targetNode: number[]): [number[], number] {
     let dirX = vecX / magnitude;
     let dirZ = vecZ / magnitude;
 
-    return [[dirX, dirZ], magnitude];
+    let rotation = Math.atan2(-dirZ, dirX);
+
+    return [[dirX, dirZ], rotation, magnitude];
 }
 
 function getDestination(
     sourceNode: [number, number],
     targetNode: [number, number],
     distance: number,
-): [[number, number], number] {
+): [[number, number], number, number] {
     // // get source and destination
     let sourceX = sourceNode[0];
     let sourceZ = sourceNode[1];
@@ -377,12 +422,12 @@ function getDestination(
     // let dirX = vecX / magnitude;
     // let dirZ = vecZ / magnitude;
 
-    let [[dirX, dirZ], magnitude] = dirTo(sourceNode, targetNode);
+    let [[dirX, dirZ], rotation, magnitude] = dirTo(sourceNode, targetNode);
 
     let destX = dirX * distance + sourceX;
     let destZ = dirZ * distance + sourceZ;
 
-    return [[destX, destZ], magnitude];
+    return [[destX, destZ], rotation, magnitude];
 }
 
 function isBetween(
