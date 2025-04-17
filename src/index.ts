@@ -1,8 +1,9 @@
-import { Engine } from "./enigne/engine";
-import { initializeCamera, initializeWorld } from "./world";
-import { initializePlaceables } from "./placeables/placeables";
+import { Engine } from "./engine/engine";
+// import { initializePlaceables } from "./placeables/placeables";
 import { loadModels } from "./loader";
-import { initializeTrainSystem } from "./train/controller";
+// import { initializeTrainSystem } from "./train/controller";
+import { WorldManager } from "./world/world";
+import { ThreeWrapper } from "./world/threeWrapper";
 
 async function main() {
     var engine = new Engine();
@@ -10,15 +11,20 @@ async function main() {
     // load models
     await loadModels();
 
+    let threeWrapper = new ThreeWrapper();
+    engine.addActor(threeWrapper);
+
+    engine.addActor(new WorldManager(threeWrapper.id));
+
     // initialize world
-    initializeCamera(engine);
-    initializeWorld(engine);
+    // initializeCamera(engine);
+    // initializeWorld(engine);
 
     // add placeables
-    initializePlaceables(engine);
-    initializeTrainSystem(engine);
+    // initializePlaceables(engine);
+    // initializeTrainSystem(engine);
 
-    engine.start();
+    engine.run();
 }
 
 main();

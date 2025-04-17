@@ -2,8 +2,8 @@ import * as THREE from "three";
 import { trackPlaceableFactory } from "../track/trackPlaceable";
 import { models } from "../loader";
 import { deepcopy } from "../utilities";
-import { Engine, GameState } from "../enigne/engine";
 import { makeTrain } from "../train/train";
+import { GameState } from "../engine/gameState";
 
 // need to keep track of current placeable object
 
@@ -29,7 +29,7 @@ export interface Placeable {
     dummyOpaque: () => void;
 }
 
-export function initializePlaceables(engine: Engine) {
+export function initializePlaceables(engine: Engin) {
     engine.addInitRule((state: GameState) => {
         let placeables = trackPlaceableFactory(models, state.scene);
 

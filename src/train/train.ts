@@ -1,7 +1,4 @@
 import * as THREE from "three";
-import { deepcopy } from "../utilities";
-import { PathNode } from "../track/trackPath";
-import { notDeepEqual } from "assert";
 import { modelsType } from "../loader";
 
 export interface Train {
