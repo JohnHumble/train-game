@@ -9,11 +9,9 @@ export class WorldManager {
     groundPlane: THREE.Mesh;
     controls: any;
 
-    threeWrapId: string;
+    threeWrapId: string = "three";
 
-    constructor(threeWrapId: string) {
-        this.threeWrapId = threeWrapId;
-    }
+    constructor() {}
 
     init(state: GameState, eventManager: EventManager) {
         // lights

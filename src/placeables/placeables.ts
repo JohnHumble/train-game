@@ -29,7 +29,7 @@ export interface Placeable {
     dummyOpaque: () => void;
 }
 
-export function initializePlaceables(engine: Engin) {
+export function initializePlaceables(engine: Engine) {
     engine.addInitRule((state: GameState) => {
         let placeables = trackPlaceableFactory(models, state.scene);
 

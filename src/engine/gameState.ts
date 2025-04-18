@@ -25,16 +25,18 @@ export class GameState {
     }
 
     add(actor: any): string {
-        let id = v4();
-        actor.id = id;
-        this.map.set(id, actor);
+        if (actor.id === undefined || actor.id === "") {
+            actor.id = v4();
+        }
+
+        this.map.set(actor.id, actor);
         if (actor.typeName !== undefined) {
             if (!this.typeMap.has(actor.typeName)) {
                 this.typeMap.set(actor.typeName, new Map());
             }
-            this.typeMap.get(actor.typeName).set(id, actor);
+            this.typeMap.get(actor.typeName).set(actor.id, actor);
         }
-        return id;
+        return actor.id;
     }
 
     remove(id: string) {

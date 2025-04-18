@@ -5,7 +5,7 @@ import { GameState } from "../engine/gameState";
 
 export class ThreeWrapper implements IUpdateActor {
     inState: boolean = true;
-    id: string = "";
+    id: string = "three";
 
     public readonly camera: THREE.PerspectiveCamera;
     public readonly scene: THREE.Scene;
