@@ -4,6 +4,8 @@ import { loadModels } from "./loader";
 // import { initializeTrainSystem } from "./train/controller";
 import { WorldManager } from "./world/world";
 import { ThreeWrapper } from "./world/threeWrapper";
+import { PlaceableManager } from "./placeables/placeables";
+import { MapGrid } from "./placeables/mapGrid";
 
 async function main() {
     var engine = new Engine();
@@ -11,10 +13,10 @@ async function main() {
     // load models
     await loadModels();
 
-    let threeWrapper = new ThreeWrapper();
-    engine.addActor(threeWrapper);
-
-    engine.addActor(new WorldManager(threeWrapper.id));
+    engine.addActor(new ThreeWrapper());
+    engine.addActor(new WorldManager());
+    engine.addActor(new MapGrid());
+    engine.addActor(new PlaceableManager());
 
     // initialize world
     // initializeCamera(engine);

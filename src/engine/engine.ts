@@ -18,7 +18,7 @@ export class Engine {
     public readonly eventManager: EventManager;
 
     constructor() {
-        this.state = new GameState();
+        this.state = new GameState(this);
         this.eventManager = new EventManager();
         this.updateActors = [];
         this.initActors = [];
@@ -28,7 +28,6 @@ export class Engine {
         if (actor.inState !== undefined && actor.inState) {
             this.state.add(actor);
         }
-
         if (containsFunction(actor, "init")) {
             this.initActors.push(actor);
         }

@@ -10,6 +10,7 @@ export class ThreeWrapper implements IUpdateActor {
     public readonly camera: THREE.PerspectiveCamera;
     public readonly scene: THREE.Scene;
     public readonly renderer: THREE.WebGLRenderer;
+    public canvasRect: DOMRect;
 
     constructor(settings: any = {}) {
         const canvas = document.getElementById("canvas-box");
@@ -18,9 +19,9 @@ export class ThreeWrapper implements IUpdateActor {
             throw console.error("Could not load canvas for game engine.");
         }
 
-        let canvasRect = canvas.getBoundingClientRect();
-        canvasRect.width;
-        canvasRect.height;
+        this.canvasRect = canvas.getBoundingClientRect();
+        // canvasRect.width;
+        // canvasRect.height;
 
         this.renderer = new THREE.WebGLRenderer({
             canvas: canvas,

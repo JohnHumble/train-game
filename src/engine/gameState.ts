@@ -1,12 +1,16 @@
 import { v4 } from "uuid";
+import { Engine } from "./engine";
 
 export class GameState {
     map: Map<string, any>;
     typeMap: Map<string, Map<string, any>>;
 
-    constructor() {
+    private engine: Engine;
+
+    constructor(engine: Engine) {
         this.map = new Map();
         this.typeMap = new Map();
+        this.engine = engine;
     }
 
     get(id: string): any {
@@ -36,6 +40,12 @@ export class GameState {
             }
             this.typeMap.get(actor.typeName).set(actor.id, actor);
         }
+
+        return actor.id;
+    }
+
+    spawn(actor: any): string {
+        this.engine.addActor(actor);
         return actor.id;
     }
 

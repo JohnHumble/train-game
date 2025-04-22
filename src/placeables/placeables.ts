@@ -2,8 +2,10 @@ import * as THREE from "three";
 import { trackPlaceableFactory } from "../track/trackPlaceable";
 import { models } from "../loader";
 import { deepcopy } from "../utilities";
-import { makeTrain } from "../train/train";
 import { GameState } from "../engine/gameState";
+import { EventManager } from "../engine/events";
+import { getGridKey, GRID_ID, MapGrid } from "./mapGrid";
+import { Train } from "../train/train";
 
 // need to keep track of current placeable object
 
@@ -13,7 +15,7 @@ const SELECT_MODE = "select";
 
 export interface PlaceableObject {
     getModels: () => THREE.Object3D[];
-    tiles: number[][];
+    tiles: [number, number][];
     setTransparent: () => void;
     setOpaque: () => void;
     getPaths: () => [number, number][][];
@@ -24,87 +26,74 @@ export interface Placeable {
     make: (x: number, y: number, z: number, rot: number) => PlaceableObject;
     updateDummyPos: (x: number, y: number, z: number, rot: number) => void;
     getDummyObj: () => THREE.Mesh;
-    getDummyTiles: () => number[][];
+    getDummyTiles: () => [number, number][];
     dummyTransparent: () => void;
     dummyOpaque: () => void;
 }
 
-export function initializePlaceables(engine: Engine) {
-    engine.addInitRule((state: GameState) => {
-        let placeables = trackPlaceableFactory(models, state.scene);
+export class PlaceableManager {
+    currentPlaceable: string;
+    mode: string;
 
-        let currentPlaceable = "strait";
-        let mode = PLACE_MODE;
+    raycaster: THREE.Raycaster;
+    placeables: { [key: string]: Placeable };
 
-        // add placeable mouse click event
-        const raycaster = new THREE.Raycaster();
+    placementRotation: number;
+    placementPosition: THREE.Vector3;
 
-        let placementRotation = 0;
-        let placementPosition = new THREE.Vector3();
+    pastObj: PlaceableObject | undefined;
 
-        let pastObj: PlaceableObject | undefined = undefined;
+    constructor() {
+        this.currentPlaceable = "strait";
+        this.mode = PLACE_MODE;
+        this.raycaster = new THREE.Raycaster();
 
-        // Game world grid
-        state.grid = new Map();
+        this.placementRotation = 0;
+        this.placementPosition = new THREE.Vector3();
+        this.pastObj = undefined;
+    }
 
-        function isAvailable(tiles: number[][]) {
-            let available = true;
-            tiles.forEach((tile) => {
-                let tileKey = getGridKey(tile);
-                available = available && state.grid.get(tileKey) == undefined;
-            });
-            return available;
-        }
+    public init(state: GameState, eventManager: EventManager) {
+        let scene = state.get("three").scene;
+        this.placeables = trackPlaceableFactory(models, scene);
+        let grid: MapGrid = state.get(GRID_ID);
 
-        function updateDummyPosColor() {
-            placeables[currentPlaceable].updateDummyPos(
-                placementPosition.x,
-                placementPosition.y,
-                placementPosition.z,
-                placementRotation,
-            );
-            if (!isAvailable(placeables[currentPlaceable].getDummyTiles())) {
-                placeables[currentPlaceable].dummyTransparent();
-            } else {
-                placeables[currentPlaceable].dummyOpaque();
-            }
-        }
-
-        function onMouseMove(event: MouseEvent) {
-            if (mode == SELECT_MODE) {
+        let onMouseMove = (event: MouseEvent) => {
+            if (this.mode == SELECT_MODE) {
                 return;
             }
-            let position = getTilePosition(event, state, raycaster);
+            let position = getTilePosition(event, state, this.raycaster);
             if (position) {
-                if (pastObj !== undefined) {
-                    pastObj.setOpaque();
+                if (this.pastObj !== undefined) {
+                    this.pastObj.setOpaque();
                 }
-                if (mode == ERASE_MODE) {
+                if (this.mode == ERASE_MODE) {
                     let key = getGridKey([position.x, position.z]);
-                    let obj = state.grid.get(key);
+                    let obj = grid.map.get(key);
                     if (obj !== undefined) {
                         obj.setTransparent();
-                        pastObj = obj;
+                        this.pastObj = obj;
                     }
-                } else if (mode == PLACE_MODE) {
-                    placementPosition = position;
-                    updateDummyPosColor();
+                } else if (this.mode == PLACE_MODE) {
+                    this.placementPosition = position;
+                    this.updateDummyPosColor(grid);
                 } else {
-                    console.log(`Mode: ${mode}`);
+                    console.log(`Mode: ${this.mode}`);
                 }
             } else {
-                placeables[currentPlaceable].getDummyObj().visible = false;
+                this.placeables[this.currentPlaceable].getDummyObj().visible =
+                    false;
             }
-        }
+        };
 
-        function onMouseClick(event: MouseEvent) {
-            let position = getTilePosition(event, state, raycaster);
+        let onMouseClick = (event: MouseEvent) => {
+            let position = getTilePosition(event, state, this.raycaster);
 
             if (position) {
-                if (mode == SELECT_MODE) {
+                if (this.mode == SELECT_MODE) {
                     console.log("selecting");
                     let key = getGridKey([position.x, position.z]);
-                    let obj = state.grid.get(key);
+                    let obj = grid.map.get(key);
                     if (obj !== undefined) {
                         if (obj.action !== undefined) {
                             obj.action();
@@ -112,59 +101,70 @@ export function initializePlaceables(engine: Engine) {
                     }
                 }
 
-                if (mode == ERASE_MODE) {
+                let scene: THREE.Scene = state.get("three").scene;
+
+                if (this.mode == ERASE_MODE) {
                     let key = getGridKey([position.x, position.z]);
-                    let obj = state.grid.get(key);
+                    let obj = grid.map.get(key);
                     if (obj !== undefined) {
                         obj.getModels().map((model: any) => {
-                            state.scene.remove(model);
+                            scene.remove(model);
                         });
                         obj.tiles.forEach((tile: number[]) => {
                             let tileKey = getGridKey(tile);
                             console.log("removing at: " + tileKey);
-                            state.grid.delete(tileKey);
+                            grid.map.delete(tileKey);
                         });
                     }
                 }
-                if (mode == PLACE_MODE) {
-                    let placeable = placeables[currentPlaceable].make(
+                if (this.mode == PLACE_MODE) {
+                    let placeable = this.placeables[this.currentPlaceable].make(
                         position.x,
                         position.y,
                         position.z,
-                        placementRotation,
+                        this.placementRotation,
                     );
                     if (placeable.tiles.length > 0) {
                         // check that space is available
-                        let available = isAvailable(placeable.tiles);
+                        let available = grid.isAvailable(placeable.tiles);
                         if (available) {
-                            placeable.getModels().map((model) => {
-                                state.scene.add(model);
-                            });
+                            placeable
+                                .getModels()
+                                .map((model: THREE.Object3D) => {
+                                    scene.add(model);
+                                });
 
-                            placeable.tiles.forEach((tile) => {
-                                let tileKey = getGridKey(tile);
-                                console.log("placing at: " + tileKey);
-                                state.grid.set(tileKey, placeable);
-                            });
+                            placeable.tiles.forEach(
+                                (tile: [number, number]) => {
+                                    let tileKey = getGridKey(tile);
+                                    console.log("placing at: " + tileKey);
+                                    grid.map.set(tileKey, placeable);
+                                },
+                            );
 
                             if (placeable.getPaths() !== undefined) {
-                                if (state.train == undefined) {
-                                    state.train = makeTrain(
-                                        placeable.getPaths()[0],
-                                        models,
-                                        state.scene,
+                                if (state.getAll("train").length <= 0) {
+                                    state.spawn(
+                                        new Train(
+                                            placeable.getPaths()[0],
+                                            models,
+                                            scene,
+                                            5,
+                                        ),
                                     );
                                 }
                             }
                         }
                     } else {
-                        placeable.getModels().forEach((model) => {
-                            state.scene.add(model);
-                        });
+                        placeable
+                            .getModels()
+                            .forEach((model: THREE.Object3D) => {
+                                scene.add(model);
+                            });
                     }
                 }
             }
-        }
+        };
 
         // TODO move these to a more generic event handler system
         window.addEventListener("click", onMouseClick);
@@ -173,18 +173,18 @@ export function initializePlaceables(engine: Engine) {
         // TODO move this to seperate function
         window.addEventListener("keypress", (event) => {
             if (event.key.toLowerCase() == "r") {
-                placementRotation += Math.PI / 2;
-                if (placementRotation >= Math.PI * 2) {
-                    placementRotation = 0;
+                this.placementRotation += Math.PI / 2;
+                if (this.placementRotation >= Math.PI * 2) {
+                    this.placementRotation = 0;
                 }
-                updateDummyPosColor();
+                this.updateDummyPosColor(grid);
             }
 
             if (event.key.toLowerCase() == "n") {
-                let keys = Object.keys(placeables);
+                let keys = Object.keys(this.placeables);
                 let ind = 0;
                 for (let i = 0; i < keys.length; i++) {
-                    if (keys[i] == currentPlaceable) {
+                    if (keys[i] == this.currentPlaceable) {
                         ind = i + 1;
                         break;
                     }
@@ -192,40 +192,59 @@ export function initializePlaceables(engine: Engine) {
                 if (ind >= keys.length) {
                     ind -= keys.length;
                 }
-                placeables[currentPlaceable].getDummyObj().visible = false;
-                currentPlaceable = keys[ind];
-                updateDummyPosColor();
+                this.placeables[this.currentPlaceable].getDummyObj().visible =
+                    false;
+                this.currentPlaceable = keys[ind];
+                this.updateDummyPosColor(grid);
 
-                placeables[currentPlaceable].getDummyObj().visible =
-                    mode == PLACE_MODE;
+                this.placeables[this.currentPlaceable].getDummyObj().visible =
+                    this.mode == PLACE_MODE;
             }
 
             if (event.key.toLowerCase() == "e") {
-                mode = ERASE_MODE;
+                this.mode = ERASE_MODE;
                 console.log("erase mode");
-                placeables[currentPlaceable].getDummyObj().visible = false;
+                this.placeables[this.currentPlaceable].getDummyObj().visible =
+                    false;
             }
 
             if (event.key.toLowerCase() == "p") {
-                mode = PLACE_MODE;
+                this.mode = PLACE_MODE;
                 console.log("place mode");
-                placeables[currentPlaceable].getDummyObj().visible = true;
+                this.placeables[this.currentPlaceable].getDummyObj().visible =
+                    true;
             }
 
             if (event.key.toLowerCase() == "s") {
-                mode = SELECT_MODE;
+                this.mode = SELECT_MODE;
                 console.log("select mode");
-                placeables[currentPlaceable].getDummyObj().visible = false;
+                this.placeables[this.currentPlaceable].getDummyObj().visible =
+                    false;
             }
         });
-    });
-}
+    }
 
-export function getGridKey(tile: number[]): string {
-    let x = Math.round(tile[0] / 2);
-    let z = Math.round(tile[1] / 2);
-    let tileKey = `${x}-${z}`;
-    return tileKey;
+    public update(state: GameState, elapsedTime: number) {
+        let grid = state.get(GRID_ID);
+    }
+
+    updateDummyPosColor(grid: MapGrid) {
+        this.placeables[this.currentPlaceable].updateDummyPos(
+            this.placementPosition.x,
+            this.placementPosition.y,
+            this.placementPosition.z,
+            this.placementRotation,
+        );
+        if (
+            !grid.isAvailable(
+                this.placeables[this.currentPlaceable].getDummyTiles(),
+            )
+        ) {
+            this.placeables[this.currentPlaceable].dummyTransparent();
+        } else {
+            this.placeables[this.currentPlaceable].dummyOpaque();
+        }
+    }
 }
 
 function getTilePosition(
@@ -233,13 +252,17 @@ function getTilePosition(
     state: GameState,
     raycaster: THREE.Raycaster,
 ): THREE.Vector3 | undefined {
+    let threeWrapper = state.get("three");
+    let camera: THREE.PerspectiveCamera = threeWrapper.camera;
+    let scene: THREE.Scene = threeWrapper.scene;
+
     let mouse = getMouseVec(event, state);
 
     // update raycaster
-    raycaster.setFromCamera(mouse, state.camera);
+    raycaster.setFromCamera(mouse, camera);
 
     // get intersects
-    const intersects = raycaster.intersectObjects(state.scene.children);
+    const intersects = raycaster.intersectObjects(scene.children);
 
     // TODO check that intersects contains the ground plane
     let groundIntersect = getGroundIntersect(intersects);
@@ -265,10 +288,10 @@ function getGroundIntersect(intersects: any) {
 }
 
 function getMouseVec(event: MouseEvent, state: GameState) {
-    let x =
-        ((event.clientX - state.canvasRect.left) / window.innerWidth) * 2 - 1;
-    let y =
-        ((-event.clientY + state.canvasRect.top) / window.innerHeight) * 2 + 1;
+    let canvasRect: DOMRect = state.get("three").canvasRect;
+
+    let x = ((event.clientX - canvasRect.left) / window.innerWidth) * 2 - 1;
+    let y = ((-event.clientY + canvasRect.top) / window.innerHeight) * 2 + 1;
 
     return new THREE.Vector2(x, y);
 }
