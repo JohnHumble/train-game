@@ -149,7 +149,8 @@ export class PlaceableManager {
                                             placeable.getPaths()[0],
                                             models,
                                             scene,
-                                            5,
+                                            // 4,
+                                            100,
                                         ),
                                     );
                                 }
