@@ -6,6 +6,8 @@ import { WorldManager } from "./world/world";
 import { ThreeWrapper } from "./world/threeWrapper";
 import { PlaceableManager } from "./placeables/placeables";
 import { MapGrid } from "./placeables/mapGrid";
+import { MouseManager } from "./input/mouseManager";
+import { CameraControl } from "./world/cameraControl";
 
 async function main() {
     var engine = new Engine();
@@ -15,8 +17,10 @@ async function main() {
 
     engine.addActor(new ThreeWrapper());
     engine.addActor(new WorldManager());
+    engine.addActor(new CameraControl());
     engine.addActor(new MapGrid());
     engine.addActor(new PlaceableManager());
+    engine.addActor(new MouseManager());
 
     // initialize world
     // initializeCamera(engine);

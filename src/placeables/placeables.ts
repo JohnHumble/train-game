@@ -3,9 +3,13 @@ import { trackPlaceableFactory } from "../track/trackPlaceable";
 import { models } from "../loader";
 import { deepcopy } from "../utilities";
 import { GameState } from "../engine/gameState";
-import { EventManager } from "../engine/events";
+import { Event, EventManager, EventPublisher } from "../engine/events";
 import { getGridKey, GRID_ID, MapGrid } from "./mapGrid";
 import { Train } from "../train/train";
+import {
+    WORLD_MOUSE_EVENT_CHANNEL,
+    MouseWorldEvent,
+} from "../input/mouseManager";
 
 // need to keep track of current placeable object
 
@@ -31,26 +35,32 @@ export interface Placeable {
     dummyOpaque: () => void;
 }
 
+export type PlaceEvent = {
+    location: THREE.Vector3;
+    rotation: number;
+    item: string;
+};
+
 export class PlaceableManager {
-    currentPlaceable: string;
+    // Manage placing objects into the game world
+
     mode: string;
 
-    raycaster: THREE.Raycaster;
     placeables: { [key: string]: Placeable };
-
+    placementPublisher: EventPublisher<PlaceEvent>;
     placementRotation: number;
     placementPosition: THREE.Vector3;
+    currentPlaceable: string;
 
     pastObj: PlaceableObject | undefined;
 
     constructor() {
-        this.currentPlaceable = "strait";
         this.mode = PLACE_MODE;
-        this.raycaster = new THREE.Raycaster();
+        this.pastObj = undefined;
 
+        this.currentPlaceable = "strait";
         this.placementRotation = 0;
         this.placementPosition = new THREE.Vector3();
-        this.pastObj = undefined;
     }
 
     public init(state: GameState, eventManager: EventManager) {
@@ -58,118 +68,141 @@ export class PlaceableManager {
         this.placeables = trackPlaceableFactory(models, scene);
         let grid: MapGrid = state.get(GRID_ID);
 
-        let onMouseMove = (event: MouseEvent) => {
-            if (this.mode == SELECT_MODE) {
-                return;
-            }
-            let position = getTilePosition(event, state, this.raycaster);
-            if (position) {
-                if (this.pastObj !== undefined) {
-                    this.pastObj.setOpaque();
-                }
-                if (this.mode == ERASE_MODE) {
-                    let key = getGridKey([position.x, position.z]);
-                    let obj = grid.map.get(key);
-                    if (obj !== undefined) {
-                        obj.setTransparent();
-                        this.pastObj = obj;
-                    }
-                } else if (this.mode == PLACE_MODE) {
-                    this.placementPosition = position;
-                    this.updateDummyPosColor(grid);
-                } else {
-                    console.log(`Mode: ${this.mode}`);
-                }
-            } else {
-                this.placeables[this.currentPlaceable].getDummyObj().visible =
-                    false;
-            }
-        };
+        this.placementPublisher = eventManager.createPublisher(
+            "placement",
+            "placement input",
+        );
 
-        let onMouseClick = (event: MouseEvent) => {
-            let position = getTilePosition(event, state, this.raycaster);
-
-            if (position) {
-                if (this.mode == SELECT_MODE) {
-                    console.log("selecting");
-                    let key = getGridKey([position.x, position.z]);
-                    let obj = grid.map.get(key);
-                    if (obj !== undefined) {
-                        if (obj.action !== undefined) {
-                            obj.action();
-                        }
-                    }
-                }
-
-                let scene: THREE.Scene = state.get("three").scene;
-
-                if (this.mode == ERASE_MODE) {
-                    let key = getGridKey([position.x, position.z]);
-                    let obj = grid.map.get(key);
-                    if (obj !== undefined) {
-                        obj.getModels().map((model: any) => {
-                            scene.remove(model);
+        // eventManager.registerSubscriber("placement", logPlaceEvents);
+        eventManager.registerSubscriber(
+            "placement",
+            (event: Event<PlaceEvent>) => {
+                let placeable = this.placeables[event.data.item].make(
+                    event.data.location.x,
+                    event.data.location.y,
+                    event.data.location.z,
+                    event.data.rotation,
+                );
+                if (placeable.tiles.length > 0) {
+                    // check that space is available
+                    let available = grid.isAvailable(placeable.tiles);
+                    if (available) {
+                        placeable.getModels().map((model: THREE.Object3D) => {
+                            scene.add(model);
                         });
-                        obj.tiles.forEach((tile: number[]) => {
+
+                        placeable.tiles.forEach((tile: [number, number]) => {
                             let tileKey = getGridKey(tile);
-                            console.log("removing at: " + tileKey);
-                            grid.map.delete(tileKey);
+                            // console.log("placing at: " + tileKey);
+                            grid.map.set(tileKey, placeable);
                         });
-                    }
-                }
-                if (this.mode == PLACE_MODE) {
-                    let placeable = this.placeables[this.currentPlaceable].make(
-                        position.x,
-                        position.y,
-                        position.z,
-                        this.placementRotation,
-                    );
-                    if (placeable.tiles.length > 0) {
-                        // check that space is available
-                        let available = grid.isAvailable(placeable.tiles);
-                        if (available) {
-                            placeable
-                                .getModels()
-                                .map((model: THREE.Object3D) => {
-                                    scene.add(model);
-                                });
 
-                            placeable.tiles.forEach(
-                                (tile: [number, number]) => {
-                                    let tileKey = getGridKey(tile);
-                                    console.log("placing at: " + tileKey);
-                                    grid.map.set(tileKey, placeable);
-                                },
-                            );
-
-                            if (placeable.getPaths() !== undefined) {
-                                if (state.getAll("train").length <= 0) {
-                                    state.spawn(
-                                        new Train(
-                                            placeable.getPaths()[0],
-                                            models,
-                                            scene,
-                                            // 4,
-                                            100,
-                                        ),
-                                    );
-                                }
+                        if (placeable.getPaths() !== undefined) {
+                            if (state.getAll("train").length <= 0) {
+                                state.spawn(
+                                    new Train(
+                                        placeable.getPaths()[0],
+                                        models,
+                                        scene,
+                                        // 4,
+                                        10,
+                                    ),
+                                );
                             }
                         }
-                    } else {
-                        placeable
-                            .getModels()
-                            .forEach((model: THREE.Object3D) => {
-                                scene.add(model);
-                            });
                     }
+                } else {
+                    placeable.getModels().forEach((model: THREE.Object3D) => {
+                        scene.add(model);
+                    });
                 }
-            }
-        };
+            },
+        );
 
-        // TODO move these to a more generic event handler system
-        window.addEventListener("click", onMouseClick);
-        window.addEventListener("mousemove", onMouseMove);
+        eventManager.registerSubscriber(
+            WORLD_MOUSE_EVENT_CHANNEL,
+            (event: Event<MouseWorldEvent>) => {
+                let position = event.data.position;
+                if (position) {
+                    if (this.mode !== SELECT_MODE) {
+                        if (this.pastObj !== undefined) {
+                            this.pastObj.setOpaque();
+                        }
+                        if (this.mode == ERASE_MODE) {
+                            let key = getGridKey([position.x, position.z]);
+                            let obj = grid.map.get(key);
+                            if (obj !== undefined) {
+                                obj.setTransparent();
+                                this.pastObj = obj;
+                            }
+                        } else if (this.mode == PLACE_MODE) {
+                            this.placementPosition = position;
+                            this.updateDummyPosColor(grid);
+                        } else {
+                            console.log(`Mode: ${this.mode}`);
+                        }
+                    }
+
+                    if (event.data.justClicked && this.mode == SELECT_MODE) {
+                        console.log("selecting");
+                        let key = getGridKey([position.x, position.z]);
+                        let obj = grid.map.get(key);
+                        if (obj !== undefined) {
+                            if (obj.action !== undefined) {
+                                obj.action();
+                            }
+                        }
+                    }
+
+                    if (event.data.click) {
+                        let scene: THREE.Scene = state.get("three").scene;
+
+                        if (this.mode == ERASE_MODE) {
+                            let key = getGridKey([position.x, position.z]);
+                            let obj = grid.map.get(key);
+                            if (obj !== undefined) {
+                                obj.getModels().map((model: any) => {
+                                    scene.remove(model);
+                                });
+                                obj.tiles.forEach((tile: number[]) => {
+                                    let tileKey = getGridKey(tile);
+                                    console.log("removing at: " + tileKey);
+                                    grid.map.delete(tileKey);
+                                });
+                            }
+                        }
+                        if (this.mode == PLACE_MODE) {
+                            this.placementPublisher.publish({
+                                location: position,
+                                rotation: this.placementRotation,
+                                item: this.currentPlaceable,
+                            });
+                        }
+                    }
+                } else {
+                    this.placeables[
+                        this.currentPlaceable
+                    ].getDummyObj().visible = false;
+                }
+            },
+        );
+
+        // let onMouseMove = (event: MouseEvent) => {
+
+        //     }
+        // };
+
+        // let onMouseClick = (event: MouseEvent) => {
+        //     let position = getTilePosition(event, state, this.raycaster);
+
+        //     if (position) {
+
+        //     }
+        // };
+
+        // // TODO move these to a more generic event handler system
+        // window.addEventListener("click", onMouseClick);
+        // window.addEventListener("mousemove", onMouseMove);
 
         // TODO move this to seperate function
         window.addEventListener("keypress", (event) => {
@@ -295,4 +328,8 @@ function getMouseVec(event: MouseEvent, state: GameState) {
     let y = ((-event.clientY + canvasRect.top) / window.innerHeight) * 2 + 1;
 
     return new THREE.Vector2(x, y);
+}
+
+function logPlaceEvents(event: Event<PlaceEvent>) {
+    console.log(event);
 }

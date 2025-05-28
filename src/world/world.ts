@@ -40,15 +40,15 @@ export class WorldManager {
         let scene = state.get(this.threeWrapId).scene;
         scene.add(this.ambientLight, this.sunLight, this.groundPlane);
 
-        this.controls = new OrbitControls(
-            state.get(this.threeWrapId).camera,
-            state.get(this.threeWrapId).renderer.domElement,
-        );
+        // this.controls = new OrbitControls(
+        //     state.get(this.threeWrapId).camera,
+        //     state.get(this.threeWrapId).renderer.domElement,
+        // );
     }
 
-    public update(state: GameState, elapsedTime: number) {
-        this.controls.update();
-    }
+    // public update(state: GameState, elapsedTime: number) {
+    //     this.controls.update();
+    // }
 }
 
 // export function initializeCamera(engine: Engine) {

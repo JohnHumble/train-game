@@ -41,8 +41,8 @@ export class ThreeWrapper implements IUpdateActor {
             settings.far ?? 1024,
         );
         this.camera.position.z = 30;
-        this.camera.position.y = 10;
-        this.camera.rotateX(Math.PI / 2);
+        this.camera.position.y = 30;
+        this.camera.rotateX(-Math.PI / 2);
 
         // TODO move this to an engine event handler system.
         window.addEventListener("resize", () => {

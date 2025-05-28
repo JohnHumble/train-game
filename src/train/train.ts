@@ -59,9 +59,11 @@ export class Train {
         let wagons = [engine];
 
         let connector = child;
+        let spacing = 2.6;
 
         for (let i = 0; i < numberOfCars; i++) {
-            connector.spacing = 1.9;
+            connector.spacing = spacing;
+            spacing = 1.9;
             pos.z -= connector.spacing;
 
             let [car1, [child2, child3]] = makeWagon(
