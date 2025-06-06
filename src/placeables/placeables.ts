@@ -243,50 +243,6 @@ export class PlaceableManager {
                 this.updateDummyPosColor(grid);
             }
         });
-
-        //     if (event.key.toLowerCase() == "n") {
-        //         let keys = Object.keys(this.placeables);
-        //         let ind = 0;
-        //         for (let i = 0; i < keys.length; i++) {
-        //             if (keys[i] == this.currentPlaceable) {
-        //                 ind = i + 1;
-        //                 break;
-        //             }
-        //         }
-        //         if (ind >= keys.length) {
-        //             ind -= keys.length;
-        //         }
-        //         this.switchPlaceable(keys[ind], grid);
-        //         // this.placeables[this.currentPlaceable].getDummyObj().visible =
-        //         //     false;
-        //         // this.currentPlaceable = keys[ind];
-        //         // this.updateDummyPosColor(grid);
-
-        //         // this.placeables[this.currentPlaceable].getDummyObj().visible =
-        //         //     this.mode == PLACE_MODE;
-        //     }
-
-        //     if (event.key.toLowerCase() == "e") {
-        //         this.mode = ERASE_MODE;
-        //         console.log("erase mode");
-        //         this.placeables[this.currentPlaceable].getDummyObj().visible =
-        //             false;
-        //     }
-
-        //     if (event.key.toLowerCase() == "p") {
-        //         this.mode = PLACE_MODE;
-        //         console.log("place mode");
-        //         this.placeables[this.currentPlaceable].getDummyObj().visible =
-        //             true;
-        //     }
-
-        //     if (event.key.toLowerCase() == "s") {
-        //         this.mode = SELECT_MODE;
-        //         console.log("select mode");
-        //         this.placeables[this.currentPlaceable].getDummyObj().visible =
-        //             false;
-        //     }
-        // });
     }
 
     public update(state: GameState, elapsedTime: number) {
