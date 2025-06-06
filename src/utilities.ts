@@ -1,4 +1,7 @@
 export function deepcopy<T>(obj: T): T {
+    if (obj === undefined) {
+        return undefined;
+    }
     let objStr = JSON.stringify(obj);
     let outObj = JSON.parse(objStr);
     return outObj;
