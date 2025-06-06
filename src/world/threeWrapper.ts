@@ -11,20 +11,21 @@ export class ThreeWrapper implements IUpdateActor {
     public readonly scene: THREE.Scene;
     public readonly renderer: THREE.WebGLRenderer;
     public canvasRect: DOMRect;
+    public readonly canvas: HTMLElement;
 
     constructor(settings: any = {}) {
-        const canvas = document.getElementById("canvas-box");
+        this.canvas = document.getElementById("canvas-box");
 
-        if (!canvas) {
+        if (!this.canvas) {
             throw console.error("Could not load canvas for game engine.");
         }
 
-        this.canvasRect = canvas.getBoundingClientRect();
+        this.canvasRect = this.canvas.getBoundingClientRect();
         // canvasRect.width;
         // canvasRect.height;
 
         this.renderer = new THREE.WebGLRenderer({
-            canvas: canvas,
+            canvas: this.canvas,
         });
 
         this.scene = new THREE.Scene();

@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { trackPlaceableFactory } from "../track/trackPlaceable";
 import { models } from "../loader";
-import { deepcopy } from "../utilities";
 import { GameState } from "../engine/gameState";
 import { Event, EventManager, EventPublisher } from "../engine/events";
 import { getGridKey, GRID_ID, MapGrid } from "./mapGrid";
@@ -10,12 +9,13 @@ import {
     WORLD_MOUSE_EVENT_CHANNEL,
     MouseWorldEvent,
 } from "../input/mouseManager";
+import { ToyboxPlaceEvent } from "../input/toybox";
 
 // need to keep track of current placeable object
 
-const ERASE_MODE = "erase";
-const PLACE_MODE = "place";
-const SELECT_MODE = "select";
+export const ERASE_MODE = "erase";
+export const PLACE_MODE = "place";
+export const SELECT_MODE = "select";
 
 export interface PlaceableObject {
     getModels: () => THREE.Object3D[];
@@ -55,7 +55,7 @@ export class PlaceableManager {
     pastObj: PlaceableObject | undefined;
 
     constructor() {
-        this.mode = PLACE_MODE;
+        this.mode = SELECT_MODE;
         this.pastObj = undefined;
 
         this.currentPlaceable = "strait";
@@ -71,6 +71,35 @@ export class PlaceableManager {
         this.placementPublisher = eventManager.createPublisher(
             "placement",
             "placement input",
+        );
+
+        eventManager.registerSubscriber(
+            "placeable-type",
+            (event: Event<ToyboxPlaceEvent>) => {
+                if (event.data.mode === "rot") {
+                    this.placementRotation += Math.PI / 2;
+                    if (this.placementRotation >= Math.PI * 2) {
+                        this.placementRotation = 0;
+                    }
+                    this.updateDummyPosColor(grid);
+                } else if (event.data.mode === PLACE_MODE) {
+                    this.mode = PLACE_MODE;
+                    this.placeables[
+                        this.currentPlaceable
+                    ].getDummyObj().visible = true;
+                    this.switchPlaceable(event.data.type, grid);
+                } else if (event.data.mode === SELECT_MODE) {
+                    this.mode = SELECT_MODE;
+                    this.placeables[
+                        this.currentPlaceable
+                    ].getDummyObj().visible = false;
+                } else if (event.data.mode === ERASE_MODE) {
+                    this.mode = ERASE_MODE;
+                    this.placeables[
+                        this.currentPlaceable
+                    ].getDummyObj().visible = false;
+                }
+            },
         );
 
         // eventManager.registerSubscriber("placement", logPlaceEvents);
@@ -213,49 +242,51 @@ export class PlaceableManager {
                 }
                 this.updateDummyPosColor(grid);
             }
-
-            if (event.key.toLowerCase() == "n") {
-                let keys = Object.keys(this.placeables);
-                let ind = 0;
-                for (let i = 0; i < keys.length; i++) {
-                    if (keys[i] == this.currentPlaceable) {
-                        ind = i + 1;
-                        break;
-                    }
-                }
-                if (ind >= keys.length) {
-                    ind -= keys.length;
-                }
-                this.placeables[this.currentPlaceable].getDummyObj().visible =
-                    false;
-                this.currentPlaceable = keys[ind];
-                this.updateDummyPosColor(grid);
-
-                this.placeables[this.currentPlaceable].getDummyObj().visible =
-                    this.mode == PLACE_MODE;
-            }
-
-            if (event.key.toLowerCase() == "e") {
-                this.mode = ERASE_MODE;
-                console.log("erase mode");
-                this.placeables[this.currentPlaceable].getDummyObj().visible =
-                    false;
-            }
-
-            if (event.key.toLowerCase() == "p") {
-                this.mode = PLACE_MODE;
-                console.log("place mode");
-                this.placeables[this.currentPlaceable].getDummyObj().visible =
-                    true;
-            }
-
-            if (event.key.toLowerCase() == "s") {
-                this.mode = SELECT_MODE;
-                console.log("select mode");
-                this.placeables[this.currentPlaceable].getDummyObj().visible =
-                    false;
-            }
         });
+
+        //     if (event.key.toLowerCase() == "n") {
+        //         let keys = Object.keys(this.placeables);
+        //         let ind = 0;
+        //         for (let i = 0; i < keys.length; i++) {
+        //             if (keys[i] == this.currentPlaceable) {
+        //                 ind = i + 1;
+        //                 break;
+        //             }
+        //         }
+        //         if (ind >= keys.length) {
+        //             ind -= keys.length;
+        //         }
+        //         this.switchPlaceable(keys[ind], grid);
+        //         // this.placeables[this.currentPlaceable].getDummyObj().visible =
+        //         //     false;
+        //         // this.currentPlaceable = keys[ind];
+        //         // this.updateDummyPosColor(grid);
+
+        //         // this.placeables[this.currentPlaceable].getDummyObj().visible =
+        //         //     this.mode == PLACE_MODE;
+        //     }
+
+        //     if (event.key.toLowerCase() == "e") {
+        //         this.mode = ERASE_MODE;
+        //         console.log("erase mode");
+        //         this.placeables[this.currentPlaceable].getDummyObj().visible =
+        //             false;
+        //     }
+
+        //     if (event.key.toLowerCase() == "p") {
+        //         this.mode = PLACE_MODE;
+        //         console.log("place mode");
+        //         this.placeables[this.currentPlaceable].getDummyObj().visible =
+        //             true;
+        //     }
+
+        //     if (event.key.toLowerCase() == "s") {
+        //         this.mode = SELECT_MODE;
+        //         console.log("select mode");
+        //         this.placeables[this.currentPlaceable].getDummyObj().visible =
+        //             false;
+        //     }
+        // });
     }
 
     public update(state: GameState, elapsedTime: number) {
@@ -278,6 +309,15 @@ export class PlaceableManager {
         } else {
             this.placeables[this.currentPlaceable].dummyOpaque();
         }
+    }
+
+    switchPlaceable(placeable: string, grid: MapGrid) {
+        this.placeables[this.currentPlaceable].getDummyObj().visible = false;
+        this.currentPlaceable = placeable;
+        this.updateDummyPosColor(grid);
+
+        this.placeables[this.currentPlaceable].getDummyObj().visible =
+            this.mode == PLACE_MODE;
     }
 }
 

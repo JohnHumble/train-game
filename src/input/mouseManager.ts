@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { EventManager, EventPublisher } from "../engine/events";
 import { GameState } from "../engine/gameState";
+import { ThreeWrapper } from "../world/threeWrapper";
 
 export const WORLD_MOUSE_EVENT_CHANNEL = "world-mouse-event-channel";
 export const UI_MOUSE_EVENT_CHANNEL = "ui-mouse-event-channel";
@@ -34,9 +35,9 @@ export class MouseManager {
             this.constructor.name,
         );
 
-        eventManager.registerSubscriber(WORLD_MOUSE_EVENT_CHANNEL, (event) => {
-            console.log(event.data);
-        });
+        // eventManager.registerSubscriber(WORLD_MOUSE_EVENT_CHANNEL, (event) => {
+        //     console.log(event.data);
+        // });
 
         let onMouseMove = (event: MouseEvent) => {
             // TODO check if over ui
@@ -70,9 +71,11 @@ export class MouseManager {
             this.publishMouseEvent(event);
         };
 
-        window.addEventListener("mouseup", onMouseUp);
-        window.addEventListener("mousedown", onMouseDown);
-        window.addEventListener("mousemove", onMouseMove);
+        let threeWrapper: ThreeWrapper = state.get("three");
+
+        threeWrapper.canvas.addEventListener("mousedown", onMouseDown);
+        document.addEventListener("mouseup", onMouseUp);
+        document.addEventListener("mousemove", onMouseMove);
     }
 
     private publishMouseEvent(event: MouseEvent) {
